@@ -8,12 +8,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: auditing
-      POSTGRES_INITDB_ARGS: "--data-checksums"
     ports:
       - "5432:5432"
-    volumes:
-      - ./init-scripts:/docker-entrypoint-initdb.d
-      - auditing-postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -28,8 +24,6 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
-    volumes:
-      - auditing-pgadmin-data:/var/lib/pgadmin
     depends_on:
       - postgres
 
