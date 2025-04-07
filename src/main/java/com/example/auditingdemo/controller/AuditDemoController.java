@@ -1,12 +1,15 @@
 package com.example.auditingdemo.controller;
 
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,6 +47,7 @@ public class AuditDemoController {
         List<Map<String, Object>> result = new ArrayList<>();
         
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        ZoneId zoneId = ZoneId.of("Asia/Taipei");
         
         for (User user : users) {
             Map<String, Object> entry = new HashMap<>();
@@ -54,32 +58,32 @@ public class AuditDemoController {
             
             // 創建者信息
             entry.put("createdBy", user.getCreatedBy());
-            entry.put("createdTime", user.getCreatedTime().format(formatter));
+            entry.put("createdTime", user.getCreatedTime().atZone(zoneId).format(formatter));
             
             // 創建者詳細信息
             UserInfo creatorInfo = userInfoRepository.findById(user.getCreatedBy()).orElse(null);
             if (creatorInfo != null) {
-                entry.put("creatorDetails", Map.of(
-                    "userId", creatorInfo.getUserId(),
-                    "name", creatorInfo.getName(),
-                    "company", creatorInfo.getCompany(),
-                    "unit", creatorInfo.getUnit()
-                ));
+                Map<String, String> creatorDetails = new HashMap<>();
+                creatorDetails.put("userId", creatorInfo.getUserId());
+                creatorDetails.put("name", creatorInfo.getName());
+                creatorDetails.put("company", creatorInfo.getCompany());
+                creatorDetails.put("unit", creatorInfo.getUnit());
+                entry.put("creatorDetails", creatorDetails);
             }
             
             // 修改者信息
             entry.put("modifiedBy", user.getModifiedBy());
-            entry.put("modifiedTime", user.getModifiedTime().format(formatter));
+            entry.put("modifiedTime", user.getModifiedTime().atZone(zoneId).format(formatter));
             
             // 修改者詳細信息
             UserInfo modifierInfo = userInfoRepository.findById(user.getModifiedBy()).orElse(null);
             if (modifierInfo != null) {
-                entry.put("modifierDetails", Map.of(
-                    "userId", modifierInfo.getUserId(),
-                    "name", modifierInfo.getName(),
-                    "company", modifierInfo.getCompany(),
-                    "unit", modifierInfo.getUnit()
-                ));
+                Map<String, String> modifierDetails = new HashMap<>();
+                modifierDetails.put("userId", modifierInfo.getUserId());
+                modifierDetails.put("name", modifierInfo.getName());
+                modifierDetails.put("company", modifierInfo.getCompany());
+                modifierDetails.put("unit", modifierInfo.getUnit());
+                entry.put("modifierDetails", modifierDetails);
             }
             
             result.add(entry);
@@ -108,39 +112,42 @@ public class AuditDemoController {
             
             // 4. 組裝結果，展示審計過程
             Map<String, Object> result = new HashMap<>();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            ZoneId zoneId = ZoneId.of("Asia/Taipei");
             
             // 基本信息
             result.put("userId", savedUser.getId());
             result.put("username", savedUser.getUsername());
             
             // 審計信息
-            result.put("auditInfo", Map.of(
-                "createdBy", savedUser.getCreatedBy(),
-                "createdTime", savedUser.getCreatedTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                "createdCompany", savedUser.getCreatedCompany(),
-                "createdUnit", savedUser.getCreatedUnit(),
-                "createdName", savedUser.getCreatedName()
-            ));
+            Map<String, String> auditInfo = new HashMap<>();
+            auditInfo.put("createdBy", savedUser.getCreatedBy());
+            auditInfo.put("createdTime", savedUser.getCreatedTime().atZone(zoneId).format(formatter));
+            auditInfo.put("createdCompany", savedUser.getCreatedCompany());
+            auditInfo.put("createdUnit", savedUser.getCreatedUnit());
+            auditInfo.put("createdName", savedUser.getCreatedName());
+            result.put("auditInfo", auditInfo);
             
             // 操作者詳細信息
             if (operatorInfo != null) {
-                result.put("operatorFromUserInfo", Map.of(
-                    "userId", operatorInfo.getUserId(),
-                    "name", operatorInfo.getName(),
-                    "company", operatorInfo.getCompany(),
-                    "unit", operatorInfo.getUnit()
-                ));
+                Map<String, String> operatorDetails = new HashMap<>();
+                operatorDetails.put("userId", operatorInfo.getUserId());
+                operatorDetails.put("name", operatorInfo.getName());
+                operatorDetails.put("company", operatorInfo.getCompany());
+                operatorDetails.put("unit", operatorInfo.getUnit());
+                result.put("operatorFromUserInfo", operatorDetails);
             }
             
             // 審計流程說明
-            result.put("auditProcess", List.of(
+            List<String> auditProcess = Arrays.asList(
                 "1. 從HTTP頭獲取操作者ID: " + userId,
                 "2. 保存到UserContext的ThreadLocal中",
                 "3. SpringData JPA通過CustomAuditorAware獲取操作者ID並設置created_by",
                 "4. UserAuditListener從User.createdBy獲取ID (" + savedUser.getCreatedBy() + ")",
                 "5. 使用這個ID從UserInfo表查詢操作者詳細資料",
                 "6. 填充擴展審計欄位: created_company, created_unit, created_name"
-            ));
+            );
+            result.put("auditProcess", auditProcess);
             
             return result;
         } finally {
@@ -160,8 +167,9 @@ public class AuditDemoController {
      * 根據用戶ID獲取用戶信息
      */
     @GetMapping("/user-info/{userId}")
-    public UserInfo getUserInfoById(@PathVariable String userId) {
+    public ResponseEntity<UserInfo> getUserInfoById(@PathVariable String userId) {
         return userInfoRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("UserInfo not found with id: " + userId));
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 } 

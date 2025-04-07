@@ -1,6 +1,6 @@
 package com.example.auditingdemo.model;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.data.annotation.CreatedBy;
@@ -67,7 +67,7 @@ public class User {
     
     @CreatedDate
     @Column(name = "created_time", nullable = false, updatable = false)
-    private LocalDateTime createdTime;
+    private Instant createdTime;
     
     @LastModifiedBy
     @Column(name = "modified_by", nullable = false)
@@ -75,7 +75,7 @@ public class User {
     
     @LastModifiedDate
     @Column(name = "modified_time", nullable = false)
-    private LocalDateTime modifiedTime;
+    private Instant modifiedTime;
     
     // === 擴展審計欄位 ===
     

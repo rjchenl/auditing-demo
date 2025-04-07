@@ -391,4 +391,223 @@ curl http://localhost:8080/api/audit-demo/audit-with-details
 3. **資料完整性**：
    - 操作發生時，系統查詢並記錄當時操作者的組織信息
    - 即使操作者信息後來變更，歷史審計記錄仍保持不變，確保資料準確性
+
+### 時區處理
+
+本Demo還處理了時區問題，確保審計時間戳以台灣時區(UTC+8)正確儲存：
+
+1. **JVM層級時區設置**：
+   ```java
+   TimeZone.setDefault(TimeZone.getTimeZone("Asia/Taipei"));
+   ```
+
+2. **應用配置中的時區設置**：
+   ```properties
+   spring.jpa.properties.hibernate.jdbc.time_zone=Asia/Taipei
+   spring.jackson.time-zone=Asia/Taipei
+   ```
+
+3. **數據庫連接URL中的時區設置**：
+   ```properties
+   spring.datasource.url=jdbc:postgresql://localhost:5432/auditing?useSSL=false&TimeZone=Asia/Taipei
+   ```
+
+通過這些步驟，您可以清晰地了解整個審計流程以及`pf_user_info`和`pf_user`表之間的關聯。
+
+## 完整演示流程指南
+
+本章節提供一個詳細的、可重現的演示流程，幫助您完整理解Spring Data JPA審計功能的實現與運作方式。跟隨以下步驟，您可以逐步體驗整個審計過程。
+
+### 步驟0: 環境準備
+
+確保您已安裝以下軟體：
+- Docker 和 Docker Compose
+- JDK 21
+- Maven
+- curl 或 Postman（用於API測試）
+
+### 步驟1: 啟動系統
+
+1. **啟動資料庫**：
+   ```bash
+   docker compose up -d
+   ```
+   這將啟動PostgreSQL資料庫和pgAdmin管理界面。
+
+2. **檢查容器狀態**：
+   ```bash
+   docker ps
+   ```
+   確認名為`auditing-postgres`和`auditing-pgadmin`的容器已成功啟動。
+
+3. **啟動Spring Boot應用**：
+   ```bash
+   ./mvnw spring-boot:run
+   ```
+   等待應用程序啟動完成，直到看到類似`Started AuditingDemoApplication in X.XXX seconds`的訊息。
+
+### 步驟2: 探索初始資料
+
+在應用啟動時，`DataInitializer`已經自動創建了一些測試用戶信息，我們先來查看這些資料：
+
+```bash
+curl http://localhost:8080/api/audit-demo/user-info
+```
+
+您應該會看到一系列預設的用戶信息，包括：
+- kenbai (白建鈞, 研發一處)
+- peter (游XX, 研發二處)
+- shawn, leon, darren等其他用戶
+- system和admin系統用戶
+
+### 步驟3: 創建新用戶並觀察審計過程
+
+1. **使用審計演示API創建用戶**：
+
+   ```bash
+   curl -X POST http://localhost:8080/api/audit-demo/create-with-audit \
+     -H "Content-Type: application/json" \
+     -H "X-User-Id: kenbai" \
+     -d '{
+       "description": "審計演示用戶1",
+       "username": "demo-user1",
+       "password": "password123",
+       "email": "demo1@example.com",
+       "statusId": "0"
+     }'
+   ```
+
+   仔細觀察返回的JSON響應，您會看到：
+   - 創建者ID (kenbai)如何被記錄
+   - 創建者的詳細資訊（公司、部門、姓名）如何被查詢並填充
+   - 整個審計流程的步驟說明
+
+2. **使用標準API再創建一個用戶**：
+
+   ```bash
+   curl -X POST http://localhost:8080/api/users \
+     -H "Content-Type: application/json" \
+     -H "X-User-Id: peter" \
+     -d '{
+       "description": "審計演示用戶2",
+       "username": "demo-user2",
+       "password": "password123",
+       "email": "demo2@example.com",
+       "statusId": "0",
+       "defaultLanguage": "zh-tw"
+     }'
+   ```
+
+   此API沒有返回審計詳情，但審計資訊已被正確記錄。
+
+### 步驟4: 查看和驗證審計信息
+
+1. **獲取所有用戶的基本審計信息**：
+
+   ```bash
+   curl http://localhost:8080/api/users/audit
+   ```
+
+   觀察結果中demo-user1和demo-user2的創建者信息是否正確（分別為kenbai和peter）。
+
+2. **查看詳細的審計信息**：
+
+   ```bash
+   curl http://localhost:8080/api/audit-demo/audit-with-details
+   ```
+
+   這個API不僅顯示審計字段的值，還會查詢並顯示創建者和修改者的詳細資料，幫助您清楚地看到`pf_user`表和`pf_user_info`表之間的關聯。
+
+### 步驟5: 更新用戶並觀察修改審計信息
+
+1. **首先，獲取用戶ID**：
+
+   ```bash
+   curl http://localhost:8080/api/users
+   ```
+
+   從返回結果中找到demo-user1的UUID，我們將使用它來更新用戶信息。
+
+2. **更新用戶信息**：
+   用實際的UUID替換下面命令中的`{user_id}`部分：
+
+   ```bash
+   curl -X PUT http://localhost:8080/api/users/{user_id} \
+     -H "Content-Type: application/json" \
+     -H "X-User-Id: shawn" \
+     -d '{
+       "email": "updated@example.com",
+       "cellphone": "0912345678"
+     }'
+   ```
+
+   注意我們使用了不同的操作者ID (`shawn`)，這將在修改審計字段中反映出來。
+
+3. **再次查看詳細審計信息**：
+
+   ```bash
+   curl http://localhost:8080/api/audit-demo/audit-with-details
+   ```
+
+   現在，找到被更新的用戶記錄，觀察：
+   - `createdBy`和`createdCompany/Unit/Name`仍然保留原始創建者(kenbai)的信息
+   - `modifiedBy`和`modifiedCompany/Unit/Name`已變更為新的修改者(shawn)的信息
+   - `modifiedTime`已更新為最新的時間
+
+### 步驟6: 使用資料庫工具驗證
+
+1. **訪問pgAdmin**：
+   - 打開瀏覽器訪問：http://localhost:5050
+   - 使用以下憑據登入：
+     - 郵箱：admin@example.com
+     - 密碼：admin
+
+2. **連接到資料庫**：
+   - 添加新服務器（如果尚未添加）
+   - 使用以下連接信息：
+     - 主機：postgres
+     - 端口：5432
+     - 數據庫：auditing
+     - 用戶名：postgres
+     - 密碼：postgres
+
+3. **查詢審計表**：
+   執行以下SQL查詢，直接查看資料庫中的審計記錄：
+
+   ```sql
+   SELECT u.username, 
+          u.created_by, u.created_company, u.created_unit, u.created_name, u.created_time,
+          u.modified_by, u.modified_company, u.modified_unit, u.modified_name, u.modified_time
+   FROM pf_user u
+   WHERE u.username LIKE 'demo-user%'
+   ORDER BY u.created_time;
+   ```
+
+   注意觀察：
+   - 時間戳是否以台灣時區(UTC+8)正確顯示
+   - 創建者和修改者資訊是否正確無誤
+
+### 步驟7: 探索時區處理
+
+1. **查看當前系統和資料庫時區**：
+   在pgAdmin中執行：
+
+   ```sql
+   SHOW timezone;
+   SELECT NOW();
+   ```
+
+2. **比較Java時間和資料庫時間**：
+   檢查`created_time`和`modified_time`的值是否與實際操作時間一致。
+
+### 重要結論
+
+通過完成以上步驟，您已經親身體驗了整個審計數據流：
+
+1. **資料來源**：HTTP頭中的用戶ID → UserContext (ThreadLocal) → AuditorAware → JPA審計機制
+2. **擴展處理**：實體監聽器在保存前查詢用戶詳細信息並填充擴展欄位
+3. **時間處理**：系統在多個層面確保時區正確設置，時間戳準確無誤
+4. **資料完整性**：即使用戶詳細資料將來變更，歷史審計記錄仍保持不變
+
+這個演示展示了如何利用Spring Data JPA審計功能實現產品級別的審計追蹤，並通過擴展實現更詳細的審計信息記錄。
  
