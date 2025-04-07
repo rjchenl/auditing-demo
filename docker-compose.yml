@@ -1,8 +1,5 @@
 version: '3.8'
 
-volumes:
-  auditing-postgres-data:
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -31,5 +28,11 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
+    volumes:
+      - auditing-pgadmin-data:/var/lib/pgadmin
     depends_on:
       - postgres
+
+volumes:
+  auditing-postgres-data:
+  auditing-pgadmin-data:
