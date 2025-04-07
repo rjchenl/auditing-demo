@@ -17,8 +17,8 @@ import com.example.auditingdemo.audit.CustomAuditorAware;
 public class JpaAuditingConfiguration {
     
     /**
-     * 配置審計功能的AuditorAware實現
-     * 用於獲取當前操作用戶的ID
+     * 設定審計者提供者
+     * @return AuditorAware<String> 審計者提供者
      */
     @Bean
     @Primary
