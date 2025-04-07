@@ -73,7 +73,8 @@ curl -X POST http://localhost:8080/api/users \
     "username": "testuser",
     "password": "password123",
     "email": "test@example.com",
-    "statusId": "0"
+    "statusId": "0",
+    "defaultLanguage": "zh-tw"
   }'
 ```
 
@@ -105,7 +106,6 @@ curl http://localhost:8080/api/users/audit
 public class JpaAuditingConfiguration {
     
     @Bean
-    @Primary
     public AuditorAware<String> auditorProvider() {
         return new CustomAuditorAware();
     }
@@ -132,7 +132,7 @@ public class CustomAuditorAware implements AuditorAware<String> {
 
 ```java
 @Entity
-@Table(name = "pf_user")
+@Table(name = "pf_user", schema = "icp")
 @EntityListeners({AuditingEntityListener.class, UserAuditListener.class})
 public class User {
     
@@ -173,6 +173,8 @@ public class User {
     
     @Column(name = "modified_name")
     private String modifiedName;
+    
+    // ...
 }
 ```
 
@@ -230,3 +232,163 @@ pgAdmin訪問信息：
 - URL：http://localhost:5050
 - 郵箱：admin@example.com
 - 密碼：admin 
+
+## 審計Demo詳細說明
+
+為了更直觀地展示審計流程和數據關聯，本項目包含了一個專門的審計Demo控制器。以下是詳細的演示步驟和說明：
+
+### 數據表關係說明
+
+本Demo包含兩個核心表：
+
+1. **pf_user_info表** - 存儲用戶詳細信息
+   - 主鍵：`user_id` (如 "kenbai", "peter" 等)
+   - 包含用戶的組織信息：公司(company)、部門(unit)、姓名(name)
+   - 這些記錄在系統啟動時由`DataInitializer`自動創建
+
+2. **pf_user表** - 存儲用戶帳號及審計信息
+   - 主鍵：`user_uid` (UUID格式)
+   - 標準審計欄位：`created_by`, `created_time`, `modified_by`, `modified_time`
+   - 擴展審計欄位：`created_company`, `created_unit`, `created_name`, `modified_company`, `modified_unit`, `modified_name`
+
+### 核心關聯
+- `pf_user.created_by` 對應 `pf_user_info.user_id`
+- `pf_user.modified_by` 對應 `pf_user_info.user_id`
+
+### 審計流程演示
+
+以下API可幫助您清晰理解整個審計流程：
+
+#### 1. 查看所有用戶信息(UserInfo)
+
+```bash
+curl http://localhost:8080/api/audit-demo/user-info
+```
+
+這會返回所有可用於審計的用戶信息，類似於：
+```json
+[
+  {
+    "userId": "kenbai", 
+    "company": "TPIsoftware",
+    "unit": "研發一處",
+    "name": "白建鈞"
+  },
+  {
+    "userId": "peter", 
+    "company": "TPIsoftware",
+    "unit": "研發二處",
+    "name": "游XX"
+  }
+  // 其他用戶...
+]
+```
+
+#### 2. 使用審計演示API創建用戶
+
+```bash
+curl -X POST http://localhost:8080/api/audit-demo/create-with-audit \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: kenbai" \
+  -d '{
+    "description": "審計演示用戶",
+    "username": "demo-user",
+    "password": "password123",
+    "email": "demo@example.com",
+    "statusId": "0"
+  }'
+```
+
+這會返回詳細的審計流程信息：
+```json
+{
+  "userId": "UUID格式的ID",
+  "username": "demo-user",
+  "auditInfo": {
+    "createdBy": "kenbai",
+    "createdTime": "2025-04-07 14:30:00",
+    "createdCompany": "TPIsoftware",
+    "createdUnit": "研發一處",
+    "createdName": "白建鈞"
+  },
+  "operatorFromUserInfo": {
+    "userId": "kenbai",
+    "name": "白建鈞",
+    "company": "TPIsoftware",
+    "unit": "研發一處"
+  },
+  "auditProcess": [
+    "1. 從HTTP頭獲取操作者ID: kenbai",
+    "2. 保存到UserContext的ThreadLocal中",
+    "3. SpringData JPA通過CustomAuditorAware獲取操作者ID並設置created_by",
+    "4. UserAuditListener從User.createdBy獲取ID (kenbai)",
+    "5. 使用這個ID從UserInfo表查詢操作者詳細資料",
+    "6. 填充擴展審計欄位: created_company, created_unit, created_name"
+  ]
+}
+```
+
+#### 3. 查看所有用戶的審計詳情
+
+```bash
+curl http://localhost:8080/api/audit-demo/audit-with-details
+```
+
+這會返回所有用戶的審計信息，明確展示`pf_user_info`和`pf_user`審計欄位的關聯：
+```json
+[
+  {
+    "userId": "UUID格式的ID",
+    "username": "demo-user",
+    "createdBy": "kenbai",
+    "createdTime": "2025-04-07 14:30:00",
+    "creatorDetails": {
+      "userId": "kenbai",
+      "name": "白建鈞",
+      "company": "TPIsoftware",
+      "unit": "研發一處"
+    },
+    "modifiedBy": "kenbai",
+    "modifiedTime": "2025-04-07 14:30:00",
+    "modifierDetails": {
+      "userId": "kenbai",
+      "name": "白建鈞",
+      "company": "TPIsoftware",
+      "unit": "研發一處"
+    }
+  }
+]
+```
+
+### 審計數據流說明
+
+1. **操作用戶ID來源**：
+   - HTTP請求頭：`X-User-Id: kenbai`
+   - 進入`UserContext.currentUser` (ThreadLocal變量)
+   - 被`CustomAuditorAware.getCurrentAuditor()`返回給Spring Data JPA
+   - Spring Data JPA將其設置為`pf_user.created_by = "kenbai"`
+
+2. **擴展欄位填充流程**：
+   - `UserAuditListener.prePersist()`被觸發
+   - 從`pf_user.created_by`獲取用戶ID值："kenbai"
+   - 使用此ID查詢`pf_user_info`表：`SELECT * FROM pf_user_info WHERE user_id = 'kenbai'`
+   - 獲取查詢結果並填充用戶擴展欄位：
+     - `pf_user.created_company = pf_user_info.company`  
+     - `pf_user.created_unit = pf_user_info.unit`
+     - `pf_user.created_name = pf_user_info.name`
+
+### 為什麼需要兩個表？
+
+1. **數據分離原則**：
+   - `pf_user`表：存儲用戶帳號信息
+   - `pf_user_info`表：存儲用戶詳細資料和組織信息
+
+2. **審計需求**：
+   - 只有操作者ID會被記錄在審計字段中（誰做了操作）
+   - 但我們需要知道操作者當時的組織信息（公司、部門、姓名）
+   - 用戶的組織信息可能隨時間變化（調職、晉升等）
+
+3. **資料完整性**：
+   - 操作發生時，系統查詢並記錄當時操作者的組織信息
+   - 即使操作者信息後來變更，歷史審計記錄仍保持不變，確保資料準確性
+ 
