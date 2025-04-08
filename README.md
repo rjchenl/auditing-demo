@@ -1,11 +1,12 @@
-# Spring Data JPA 審計功能 POC
+# Spring Boot JPA 審計功能示範
 
-這個項目是Spring Data JPA審計功能的概念驗證(POC)，專注於實現產品化的審計欄位設計。
+這個項目是Spring Data JPA審計功能的示範應用，專注於實現產品化的審計欄位設計，包含標準審計欄位與擴展審計欄位。
 
-## 功能需求
+## 功能概述
 
-- 產品化設計需要儲存 createdBy 的 user 詳細資訊（company, unit, name）
-- 使用 Spring Data JPA Auditing 的設計從 token 取出 userId 查詢相關資訊後儲存到 table
+- 基本審計功能：記錄創建者/修改者ID及時間
+- 擴展審計功能：記錄創建者/修改者的詳細信息（公司、部門、姓名）
+- 環境配置審計功能：除基本審計外，還包含審核與部署相關的審計欄位
 
 ## 技術棧
 
@@ -15,9 +16,37 @@
 - Maven
 - Docker & Docker Compose
 
-## 實現方式
+## JWT令牌與用戶資訊的對應機制
 
-本POC使用Spring Data JPA Auditing框架實現審計功能：
+本示範專案使用簡化的JWT處理方式，通過`TokenService`類來模擬真實JWT的處理流程：
+
+1. **令牌來源**：
+   - 在HTTP請求頭`Authorization`中提供用戶ID，例如「kenbai」、「peter」或「shawn」
+   - 系統使用這個用戶ID作為簡化的「JWT令牌」
+
+2. **用戶資訊映射**：
+   - `TokenService`類中維護一個靜態映射表(Map)，存儲以下用戶的詳細資訊：
+     - **kenbai**：肯白，拓連科技，行銷部
+     - **peter**：彼得，拓連科技，研發部
+     - **shawn**：肖恩，拓連科技，產品部
+     - **system**：系統，系統，系統
+
+3. **令牌處理流程**：
+   1. `UserTokenInterceptor`從請求的`Authorization`頭提取令牌值
+   2. 將令牌存儲到`UserContext`的ThreadLocal變量中
+   3. 在實體持久化過程中，`CustomAuditorAware`從ThreadLocal獲取令牌
+   4. `CustomAuditorAware`通過`TokenService`解析令牌獲取用戶ID
+   5. 該用戶ID被Spring Data JPA用於填充標準審計欄位
+   6. `AuditEntityListener`使用同一令牌查詢用戶詳細資訊
+   7. 這些詳細資訊被用於填充擴展審計欄位
+
+4. **複雜審計（環境特有）**：
+   - 環境配置有特殊的審計需求，由`EnvironmentAuditListener`處理
+   - 審核和部署操作會使用各自的操作者令牌更新專有審計欄位
+
+## 核心實現
+
+本示範使用Spring Data JPA Auditing實現審計功能：
 
 1. **@EnableJpaAuditing**: 開啟Spring Data JPA審計功能
 2. **@CreatedBy, @LastModifiedBy**: 自動填充創建和修改者ID
@@ -25,23 +54,12 @@
 4. **AuditorAware**: 提供當前用戶ID
 5. **EntityListeners**: 使用實體監聽器填充擴展審計欄位(公司、部門、姓名等)
 
-## 審計設計架構
-
-![Auditing Architecture](docs/images/auditing-architecture.png)
-
-### 主要組件
-
-1. **JpaAuditingConfiguration**: 配置審計功能和AuditorAware
-2. **CustomAuditorAware**: 獲取當前用戶ID（實際環境可從JWT Token獲取）
-3. **UserAuditListener**: 實體監聽器，負責填充擴展審計欄位
-4. **User實體**: 包含審計欄位和注解，實現審計功能
-
 ## 快速開始
 
 ### 前提條件
 
 - Docker和Docker Compose已安裝
-- Java Development Kit (JDK) 21
+- Java 21或更高版本
 - Maven
 
 ### 啟動服務
@@ -58,168 +76,270 @@ docker-compose up -d
 ./mvnw spring-boot:run
 ```
 
-### API測試
+## 功能演示
 
-可使用以下curl命令測試審計功能：
+本示範項目包含三種不同類型的實體，用於展示不同級別的審計功能：
 
-#### 創建用戶（模擬kenbai用戶操作）
+### 1. 用戶管理 (User)
+
+用戶管理功能展示基本的審計欄位使用，包括創建者、修改者以及他們的組織信息。
+
+#### 創建用戶
 
 ```bash
+# 使用kenbai身份創建用戶
 curl -X POST http://localhost:8080/api/users \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: kenbai" \
+  -H "Authorization: kenbai" \
   -d '{
-    "description": "測試用戶",
+    "name": "測試用戶",
+    "description": "測試描述",
+    "email": "test@example.com",
     "username": "testuser",
     "password": "password123",
-    "email": "test@example.com",
-    "statusId": "0",
-    "defaultLanguage": "zh-tw"
+    "statusId": "1"
   }'
 ```
 
-#### 更新用戶（模擬peter用戶操作）
+**審計欄位變化**：
+- `created_by` = "kenbai" (JWT令牌中的用戶ID)
+- `created_time` = 當前時間
+- `modified_by` = "kenbai" (初始化與創建者相同)
+- `modified_time` = 當前時間
+- `created_company` = "拓連科技" (kenbai的公司)
+- `created_unit` = "行銷部" (kenbai的部門)
+- `created_name` = "肯白" (kenbai的姓名)
+- `modified_company` = "拓連科技" (初始與created_company相同)
+- `modified_unit` = "行銷部" (初始與created_unit相同)
+- `modified_name` = "肯白" (初始與created_name相同)
+
+#### 更新用戶
 
 ```bash
+# 使用peter身份更新用戶
 curl -X PUT http://localhost:8080/api/users/{user_id} \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: peter" \
+  -H "Authorization: peter" \
   -d '{
-    "email": "updated@example.com",
-    "cellphone": "0912345678"
+    "name": "已更新的用戶",
+    "description": "已更新的描述",
+    "email": "updated@example.com"
   }'
 ```
 
-#### 查看審計信息
+**審計欄位變化**：
+- `created_by` = 不變 (保持原始創建者記錄)
+- `created_time` = 不變 (保持原始創建時間)
+- `created_company` = 不變 (保持原始公司記錄)
+- `created_unit` = 不變 (保持原始部門記錄)
+- `created_name` = 不變 (保持原始姓名記錄)
+- `modified_by` = "peter" (更新為當前JWT令牌中的用戶ID)
+- `modified_time` = 當前時間 (更新為操作時間)
+- `modified_company` = "拓連科技" (peter的公司)
+- `modified_unit` = "研發部" (peter的部門)
+- `modified_name` = "彼得" (peter的姓名)
+
+#### 查看用戶審計信息
 
 ```bash
 curl http://localhost:8080/api/users/audit
 ```
 
-## 關鍵代碼說明
+### 2. API管理 (Api)
 
-### JPA審計配置
+API管理功能與用戶管理類似，共用相同的擴展審計欄位結構。API實體包含類似的審計欄位。
 
-```java
-@Configuration
-@EnableJpaAuditing
-public class JpaAuditingConfiguration {
-    
-    @Bean
-    public AuditorAware<String> auditorProvider() {
-        return new CustomAuditorAware();
-    }
-}
+#### 創建API
+
+```bash
+curl -X POST http://localhost:8080/api/apis \
+  -H "Content-Type: application/json" \
+  -H "Authorization: kenbai" \
+  -d '{
+    "apiname": "test-api",
+    "description": "測試API說明"
+  }'
 ```
 
-### 自定義AuditorAware實現
+**審計欄位變化**：
+- `created_by` = "kenbai" (JWT令牌中的用戶ID)
+- `created_time` = 當前時間
+- `modified_by` = "kenbai" (初始化與創建者相同)
+- `modified_time` = 當前時間
+- `created_company` = "拓連科技" (kenbai的公司)
+- `created_unit` = "行銷部" (kenbai的部門)
+- `created_name` = "肯白" (kenbai的姓名)
+- `modified_company` = "拓連科技" (初始與created_company相同)
+- `modified_unit` = "行銷部" (初始與created_unit相同)
+- `modified_name` = "肯白" (初始與created_name相同)
 
-```java
-@Component
-public class CustomAuditorAware implements AuditorAware<String> {
+#### 更新API
 
-    @Override
-    public Optional<String> getCurrentAuditor() {
-        // 從UserContext獲取當前用戶ID
-        // 實際應用中，可從JWT Token或Security Context獲取
-        String currentUser = UserContext.getCurrentUser();
-        return Optional.ofNullable(currentUser).or(() -> Optional.of("system"));
-    }
-}
+```bash
+curl -X PUT http://localhost:8080/api/apis/{id} \
+  -H "Content-Type: application/json" \
+  -H "Authorization: peter" \
+  -d '{
+    "description": "已更新的API說明"
+  }'
 ```
 
-### User實體中的審計欄位
+**審計欄位變化**：
+- `created_by` = 不變 (保持原始創建者記錄)
+- `created_time` = 不變 (保持原始創建時間)
+- `created_company` = 不變 (保持原始公司記錄)
+- `created_unit` = 不變 (保持原始部門記錄)
+- `created_name` = 不變 (保持原始姓名記錄)
+- `modified_by` = "peter" (更新為當前JWT令牌中的用戶ID)
+- `modified_time` = 當前時間 (更新為操作時間)
+- `modified_company` = "拓連科技" (peter的公司)
+- `modified_unit` = "研發部" (peter的部門)
+- `modified_name` = "彼得" (peter的姓名)
 
-```java
-@Entity
-@Table(name = "pf_user", schema = "icp")
-@EntityListeners({AuditingEntityListener.class, UserAuditListener.class})
-public class User {
-    
-    // 基本欄位...
-    
-    // Spring Data JPA審計欄位
-    @CreatedBy
-    @Column(name = "created_by", nullable = false, updatable = false)
-    private String createdBy;
-    
-    @CreatedDate
-    @Column(name = "created_time", nullable = false, updatable = false)
-    private Instant createdTime;
-    
-    @LastModifiedBy
-    @Column(name = "modified_by", nullable = false)
-    private String modifiedBy;
-    
-    @LastModifiedDate
-    @Column(name = "modified_time", nullable = false)
-    private Instant modifiedTime;
-    
-    // 擴展審計欄位
-    @Column(name = "created_company")
-    private String createdCompany;
-    
-    @Column(name = "created_unit")
-    private String createdUnit;
-    
-    @Column(name = "created_name")
-    private String createdName;
-    
-    @Column(name = "modified_company")
-    private String modifiedCompany;
-    
-    @Column(name = "modified_unit")
-    private String modifiedUnit;
-    
-    @Column(name = "modified_name")
-    private String modifiedName;
-    
-    // ...
-}
+### 3. 環境配置管理 (Environment)
+
+環境配置管理功能展示了更複雜的審計流程，除了基本的創建/修改審計外，還包含了審核與部署等特定業務流程的審計。與User和Api不同，Environment有特殊的審計欄位組。
+
+#### 創建環境配置
+
+```bash
+curl -X POST http://localhost:8080/api/environments \
+  -H "Content-Type: application/json" \
+  -H "Authorization: kenbai" \
+  -d '{
+    "name": "測試環境",
+    "description": "用於測試的環境配置",
+    "type": "TEST",
+    "configValue": "{\"server\":\"test.example.com\",\"port\":8080}",
+    "status": 0
+  }'
 ```
 
-### 用戶詳細信息審計監聽器
+**審計欄位變化**：
+- `created_by` = "kenbai" (JWT令牌中的用戶ID)
+- `created_time` = 當前時間
+- `modified_by` = "kenbai" (初始化與創建者相同)
+- `modified_time` = 當前時間
+- `created_company` = "拓連科技" (kenbai的公司)
+- `created_unit` = "行銷部" (kenbai的部門)
+- `modified_company` = "拓連科技" (初始與created_company相同)
+- `modified_unit` = "行銷部" (初始與created_unit相同)
+- `reviewed_by` = null (尚未審核)
+- `reviewed_time` = null (尚未審核)
+- `reviewed_company` = null (尚未審核)
+- `reviewed_unit` = null (尚未審核)
+- `deployed_by` = null (尚未部署)
+- `deployed_time` = null (尚未部署)
+- `deployed_company` = null (尚未部署)
+- `deployed_unit` = null (尚未部署)
+- `status` = 0 (草稿狀態)
+- `version` = null (尚未設定版本)
 
-```java
-@Component
-public class UserAuditListener {
-    
-    private static UserInfoRepository userInfoRepository;
-    
-    @Autowired
-    public void setUserInfoRepository(UserInfoRepository userInfoRepository) {
-        UserAuditListener.userInfoRepository = userInfoRepository;
-    }
-    
-    @PrePersist
-    public void prePersist(User user) {
-        fillUserDetails(user, user.getCreatedBy(), true);
-    }
-    
-    @PreUpdate
-    public void preUpdate(User user) {
-        fillUserDetails(user, user.getModifiedBy(), false);
-    }
-    
-    private void fillUserDetails(User user, String userId, boolean isCreated) {
-        // 查詢用戶詳細信息並填充到審計欄位
-        UserInfo userInfo = userInfoRepository.findById(userId).orElse(null);
-        if (userInfo != null) {
-            if (isCreated) {
-                user.setCreatedCompany(userInfo.getCompany());
-                user.setCreatedUnit(userInfo.getUnit());
-                user.setCreatedName(userInfo.getName());
-            } else {
-                user.setModifiedCompany(userInfo.getCompany());
-                user.setModifiedUnit(userInfo.getUnit());
-                user.setModifiedName(userInfo.getName());
-            }
-        }
-    }
-}
+#### 更新環境配置
+
+```bash
+curl -X PUT http://localhost:8080/api/environments/{id} \
+  -H "Content-Type: application/json" \
+  -H "Authorization: kenbai" \
+  -d '{
+    "description": "已更新的環境配置",
+    "configValue": "{\"server\":\"updated.example.com\",\"port\":8088}"
+  }'
 ```
 
-## 數據庫訪問
+**審計欄位變化**：
+- `created_by` = 不變 (保持原始創建者記錄)
+- `created_time` = 不變 (保持原始創建時間)
+- `created_company` = 不變 (保持原始公司記錄)
+- `created_unit` = 不變 (保持原始部門記錄)
+- `modified_by` = "kenbai" (更新為當前JWT令牌中的用戶ID)
+- `modified_time` = 當前時間 (更新為操作時間)
+- `modified_company` = "拓連科技" (kenbai的公司)
+- `modified_unit` = "行銷部" (kenbai的部門)
+- 其他特殊審計欄位保持不變 (reviewed_*, deployed_*)
+
+#### 審核環境配置
+
+```bash
+curl -X POST http://localhost:8080/api/environments/{id}/review \
+  -H "Content-Type: application/json" \
+  -H "Authorization: peter"
+```
+
+**審計欄位變化**：
+- `created_by` = 不變 (保持原始創建者記錄)
+- `created_time` = 不變 (保持原始創建時間)
+- `created_company` = 不變 (保持原始公司記錄)
+- `created_unit` = 不變 (保持原始部門記錄)
+- `modified_by` = "system" (系統自動設置)
+- `modified_time` = 當前時間 (更新為操作時間)
+- `modified_company` = "System" (系統預設值)
+- `modified_unit` = "System" (系統預設值)
+- `reviewed_by` = "peter" (審核人員ID)
+- `reviewed_time` = 當前時間 (審核時間)
+- `reviewed_company` = "拓連科技" (peter的公司)
+- `reviewed_unit` = "研發部" (peter的部門)
+- `deployed_by` = null (尚未部署)
+- `deployed_time` = null (尚未部署)
+- `deployed_company` = null (尚未部署)
+- `deployed_unit` = null (尚未部署)
+- `status` = 2 (已審核狀態)
+
+#### 部署環境配置
+
+```bash
+curl -X POST http://localhost:8080/api/environments/{id}/deploy \
+  -H "Content-Type: application/json" \
+  -H "Authorization: shawn" \
+  -d '{
+    "version": "1.0.1"
+  }'
+```
+
+**審計欄位變化**：
+- `created_by` = 不變 (保持原始創建者記錄)
+- `created_time` = 不變 (保持原始創建時間)
+- `created_company` = 不變 (保持原始公司記錄)
+- `created_unit` = 不變 (保持原始部門記錄)
+- `modified_by` = "system" (系統自動設置)
+- `modified_time` = 當前時間 (更新為操作時間)
+- `modified_company` = "System" (系統預設值)
+- `modified_unit` = "System" (系統預設值)
+- `reviewed_by` = 不變 (保持審核人員記錄)
+- `reviewed_time` = 不變 (保持審核時間記錄)
+- `reviewed_company` = 不變 (保持審核人員公司記錄)
+- `reviewed_unit` = 不變 (保持審核人員部門記錄)
+- `deployed_by` = "shawn" (部署人員ID)
+- `deployed_time` = 當前時間 (部署時間)
+- `deployed_company` = "拓連科技" (shawn的公司)
+- `deployed_unit` = "產品部" (shawn的部門)
+- `status` = 3 (已部署狀態)
+- `version` = "1.0.1" (請求中指定的版本號)
+
+#### 獲取待部署環境配置列表
+
+```bash
+curl http://localhost:8080/api/environments/pending-deploy
+```
+
+## 審計流程說明
+
+### 基本審計流程
+
+1. **獲取操作者ID**：從HTTP請求頭`Authorization`中獲取操作者ID（在真實系統中通常從JWT令牌中提取）
+2. **存儲當前用戶**：通過`UserContext` (ThreadLocal)保存當前操作者ID
+3. **自動填充**：Spring Data JPA通過`AuditorAware`獲取操作者ID並自動填充標準審計欄位
+4. **擴展填充**：實體監聽器使用TokenService查詢操作者詳細信息並填充擴展審計欄位
+
+### 環境配置特定審計流程
+
+環境配置實體(Environment)展示了更複雜的審計場景，包括：
+
+1. **標準審計**：記錄創建者和修改者（與User實體相同）
+2. **審核審計**：記錄審核者ID、審核時間以及審核者的組織信息
+3. **部署審計**：記錄部署者ID、部署時間、版本號以及部署者的組織信息
+
+## 數據庫詳情
 
 PostgreSQL連接信息：
 - 主機：localhost
@@ -228,386 +348,136 @@ PostgreSQL連接信息：
 - 用戶名：postgres
 - 密碼：postgres
 
-pgAdmin訪問信息：
-- URL：http://localhost:5050
-- 郵箱：admin@example.com
-- 密碼：admin 
+### 主要表結構
 
-## 審計Demo詳細說明
-
-為了更直觀地展示審計流程和數據關聯，本項目包含了一個專門的審計Demo控制器。以下是詳細的演示步驟和說明：
-
-### 數據表關係說明
-
-本Demo包含兩個核心表：
-
-1. **pf_user_info表** - 存儲用戶詳細信息
-   - 主鍵：`user_id` (如 "kenbai", "peter" 等)
-   - 包含用戶的組織信息：公司(company)、部門(unit)、姓名(name)
-   - 這些記錄在系統啟動時由`DataInitializer`自動創建
-
-2. **pf_user表** - 存儲用戶帳號及審計信息
-   - 主鍵：`user_uid` (UUID格式)
+1. **pf_user表**：用戶信息，包含標準審計欄位
    - 標準審計欄位：`created_by`, `created_time`, `modified_by`, `modified_time`
    - 擴展審計欄位：`created_company`, `created_unit`, `created_name`, `modified_company`, `modified_unit`, `modified_name`
 
-### 核心關聯
-- `pf_user.created_by` 對應 `pf_user_info.user_id`
-- `pf_user.modified_by` 對應 `pf_user_info.user_id`
+2. **pf_api表**：API信息，包含與pf_user相同的審計欄位結構
+   - 標準審計欄位：與pf_user相同
+   - 擴展審計欄位：與pf_user相同
 
-### 審計流程演示
+3. **pf_environment表**：環境配置，包含標準審計欄位及特定業務審計欄位
+   - 標準審計欄位：與pf_user相同，但不含name欄位
+   - 特定擴展審計欄位：`created_company`, `created_unit`, `modified_company`, `modified_unit`
+   - 特定業務審計欄位：`reviewed_by`, `reviewed_time`, `reviewed_company`, `reviewed_unit`, `deployed_by`, `deployed_time`, `deployed_company`, `deployed_unit`
 
-以下API可幫助您清晰理解整個審計流程：
+## 核心類說明
 
-#### 1. 查看所有用戶信息(UserInfo)
+1. **TokenService**: 模擬JWT服務，提供用戶ID與詳細資訊的映射
+2. **AuditEntityListener**: 通用審計監聽器，負責填充擴展審計欄位
+3. **EnvironmentAuditListener**: 環境專用審計監聽器，處理審核和部署審計
+4. **CustomAuditorAware**: 提供當前操作者ID給Spring JPA
 
-```bash
-curl http://localhost:8080/api/audit-demo/user-info
-```
+## 完整演示流程
 
-這會返回所有可用於審計的用戶信息，類似於：
-```json
-[
-  {
-    "userId": "kenbai", 
-    "company": "TPIsoftware",
-    "unit": "研發一處",
-    "name": "白建鈞"
-  },
-  {
-    "userId": "peter", 
-    "company": "TPIsoftware",
-    "unit": "研發二處",
-    "name": "游XX"
-  }
-  // 其他用戶...
-]
-```
+### 測試用戶功能
 
-#### 2. 使用審計演示API創建用戶
-
-```bash
-curl -X POST http://localhost:8080/api/audit-demo/create-with-audit \
-  -H "Content-Type: application/json" \
-  -H "X-User-Id: kenbai" \
-  -d '{
-    "description": "審計演示用戶",
-    "username": "demo-user",
-    "password": "password123",
-    "email": "demo@example.com",
-    "statusId": "0"
-  }'
-```
-
-這會返回詳細的審計流程信息：
-```json
-{
-  "userId": "UUID格式的ID",
-  "username": "demo-user",
-  "auditInfo": {
-    "createdBy": "kenbai",
-    "createdTime": "2025-04-07 14:30:00",
-    "createdCompany": "TPIsoftware",
-    "createdUnit": "研發一處",
-    "createdName": "白建鈞"
-  },
-  "operatorFromUserInfo": {
-    "userId": "kenbai",
-    "name": "白建鈞",
-    "company": "TPIsoftware",
-    "unit": "研發一處"
-  },
-  "auditProcess": [
-    "1. 從HTTP頭獲取操作者ID: kenbai",
-    "2. 保存到UserContext的ThreadLocal中",
-    "3. SpringData JPA通過CustomAuditorAware獲取操作者ID並設置created_by",
-    "4. UserAuditListener從User.createdBy獲取ID (kenbai)",
-    "5. 使用這個ID從UserInfo表查詢操作者詳細資料",
-    "6. 填充擴展審計欄位: created_company, created_unit, created_name"
-  ]
-}
-```
-
-#### 3. 查看所有用戶的審計詳情
-
-```bash
-curl http://localhost:8080/api/audit-demo/audit-with-details
-```
-
-這會返回所有用戶的審計信息，明確展示`pf_user_info`和`pf_user`審計欄位的關聯：
-```json
-[
-  {
-    "userId": "UUID格式的ID",
-    "username": "demo-user",
-    "createdBy": "kenbai",
-    "createdTime": "2025-04-07 14:30:00",
-    "creatorDetails": {
-      "userId": "kenbai",
-      "name": "白建鈞",
-      "company": "TPIsoftware",
-      "unit": "研發一處"
-    },
-    "modifiedBy": "kenbai",
-    "modifiedTime": "2025-04-07 14:30:00",
-    "modifierDetails": {
-      "userId": "kenbai",
-      "name": "白建鈞",
-      "company": "TPIsoftware",
-      "unit": "研發一處"
-    }
-  }
-]
-```
-
-### 審計數據流說明
-
-1. **操作用戶ID來源**：
-   - HTTP請求頭：`X-User-Id: kenbai`
-   - 進入`UserContext.currentUser` (ThreadLocal變量)
-   - 被`CustomAuditorAware.getCurrentAuditor()`返回給Spring Data JPA
-   - Spring Data JPA將其設置為`pf_user.created_by = "kenbai"`
-
-2. **擴展欄位填充流程**：
-   - `UserAuditListener.prePersist()`被觸發
-   - 從`pf_user.created_by`獲取用戶ID值："kenbai"
-   - 使用此ID查詢`pf_user_info`表：`SELECT * FROM pf_user_info WHERE user_id = 'kenbai'`
-   - 獲取查詢結果並填充用戶擴展欄位：
-     - `pf_user.created_company = pf_user_info.company`  
-     - `pf_user.created_unit = pf_user_info.unit`
-     - `pf_user.created_name = pf_user_info.name`
-
-### 為什麼需要兩個表？
-
-1. **數據分離原則**：
-   - `pf_user`表：存儲用戶帳號信息
-   - `pf_user_info`表：存儲用戶詳細資料和組織信息
-
-2. **審計需求**：
-   - 只有操作者ID會被記錄在審計字段中（誰做了操作）
-   - 但我們需要知道操作者當時的組織信息（公司、部門、姓名）
-   - 用戶的組織信息可能隨時間變化（調職、晉升等）
-
-3. **資料完整性**：
-   - 操作發生時，系統查詢並記錄當時操作者的組織信息
-   - 即使操作者信息後來變更，歷史審計記錄仍保持不變，確保資料準確性
-
-### 時區處理
-
-本Demo還處理了時區問題，確保審計時間戳以台灣時區(UTC+8)正確儲存：
-
-1. **JVM層級時區設置**：
-   ```java
-   TimeZone.setDefault(TimeZone.getTimeZone("Asia/Taipei"));
-   ```
-
-2. **應用配置中的時區設置**：
-   ```properties
-   spring.jpa.properties.hibernate.jdbc.time_zone=Asia/Taipei
-   spring.jackson.time-zone=Asia/Taipei
-   ```
-
-3. **數據庫連接URL中的時區設置**：
-   ```properties
-   spring.datasource.url=jdbc:postgresql://localhost:5432/auditing?useSSL=false&TimeZone=Asia/Taipei
-   ```
-
-通過這些步驟，您可以清晰地了解整個審計流程以及`pf_user_info`和`pf_user`表之間的關聯。
-
-## 完整演示流程指南
-
-本章節提供一個詳細的、可重現的演示流程，幫助您完整理解Spring Data JPA審計功能的實現與運作方式。跟隨以下步驟，您可以逐步體驗整個審計過程。
-
-### 步驟0: 環境準備
-
-確保您已安裝以下軟體：
-- Docker 和 Docker Compose
-- JDK 21
-- Maven
-- curl 或 Postman（用於API測試）
-
-### 步驟1: 啟動系統
-
-1. **啟動資料庫**：
-   ```bash
-   docker compose up -d
-   ```
-   這將啟動PostgreSQL資料庫和pgAdmin管理界面。
-
-2. **檢查容器狀態**：
-   ```bash
-   docker ps
-   ```
-   確認名為`auditing-postgres`和`auditing-pgadmin`的容器已成功啟動。
-
-3. **啟動Spring Boot應用**：
-   ```bash
-   ./mvnw spring-boot:run
-   ```
-   等待應用程序啟動完成，直到看到類似`Started AuditingDemoApplication in X.XXX seconds`的訊息。
-
-### 步驟2: 探索初始資料
-
-在應用啟動時，`DataInitializer`已經自動創建了一些測試用戶信息，我們先來查看這些資料：
-
-```bash
-curl http://localhost:8080/api/audit-demo/user-info
-```
-
-您應該會看到一系列預設的用戶信息，包括：
-- kenbai (白建鈞, 研發一處)
-- peter (游XX, 研發二處)
-- shawn, leon, darren等其他用戶
-- system和admin系統用戶
-
-### 步驟3: 創建新用戶並觀察審計過程
-
-1. **使用審計演示API創建用戶**：
-
-   ```bash
-   curl -X POST http://localhost:8080/api/audit-demo/create-with-audit \
-     -H "Content-Type: application/json" \
-     -H "X-User-Id: kenbai" \
-     -d '{
-       "description": "審計演示用戶1",
-       "username": "demo-user1",
-       "password": "password123",
-       "email": "demo1@example.com",
-       "statusId": "0"
-     }'
-   ```
-
-   仔細觀察返回的JSON響應，您會看到：
-   - 創建者ID (kenbai)如何被記錄
-   - 創建者的詳細資訊（公司、部門、姓名）如何被查詢並填充
-   - 整個審計流程的步驟說明
-
-2. **使用標準API再創建一個用戶**：
-
+1. **創建用戶**：
    ```bash
    curl -X POST http://localhost:8080/api/users \
      -H "Content-Type: application/json" \
-     -H "X-User-Id: peter" \
+     -H "Authorization: kenbai" \
      -d '{
-       "description": "審計演示用戶2",
-       "username": "demo-user2",
+       "name": "測試用戶1",
+       "description": "測試描述1",
+       "email": "test1@example.com",
+       "username": "testuser1",
        "password": "password123",
-       "email": "demo2@example.com",
-       "statusId": "0",
-       "defaultLanguage": "zh-tw"
+       "statusId": "1"
      }'
    ```
 
-   此API沒有返回審計詳情，但審計資訊已被正確記錄。
+2. **更新用戶**：
+   ```bash
+   # 使用從上一步返回的用戶ID
+   curl -X PUT http://localhost:8080/api/users/43 \
+     -H "Content-Type: application/json" \
+     -H "Authorization: peter" \
+     -d '{
+       "name": "已更新的用戶1",
+       "description": "已更新的描述1",
+       "email": "updated1@example.com"
+     }'
+   ```
 
-### 步驟4: 查看和驗證審計信息
-
-1. **獲取所有用戶的基本審計信息**：
-
+3. **查看審計信息**：
    ```bash
    curl http://localhost:8080/api/users/audit
    ```
 
-   觀察結果中demo-user1和demo-user2的創建者信息是否正確（分別為kenbai和peter）。
+### 測試API功能
 
-2. **查看詳細的審計信息**：
-
+1. **創建API**：
    ```bash
-   curl http://localhost:8080/api/audit-demo/audit-with-details
-   ```
-
-   這個API不僅顯示審計字段的值，還會查詢並顯示創建者和修改者的詳細資料，幫助您清楚地看到`pf_user`表和`pf_user_info`表之間的關聯。
-
-### 步驟5: 更新用戶並觀察修改審計信息
-
-1. **首先，獲取用戶ID**：
-
-   ```bash
-   curl http://localhost:8080/api/users
-   ```
-
-   從返回結果中找到demo-user1的UUID，我們將使用它來更新用戶信息。
-
-2. **更新用戶信息**：
-   用實際的UUID替換下面命令中的`{user_id}`部分：
-
-   ```bash
-   curl -X PUT http://localhost:8080/api/users/{user_id} \
+   curl -X POST http://localhost:8080/api/apis \
      -H "Content-Type: application/json" \
-     -H "X-User-Id: shawn" \
+     -H "Authorization: kenbai" \
      -d '{
-       "email": "updated@example.com",
-       "cellphone": "0912345678"
+       "apiname": "test-api",
+       "description": "測試API說明"
      }'
    ```
 
-   注意我們使用了不同的操作者ID (`shawn`)，這將在修改審計字段中反映出來。
-
-3. **再次查看詳細審計信息**：
-
+2. **更新API**：
    ```bash
-   curl http://localhost:8080/api/audit-demo/audit-with-details
+   # 使用從上一步返回的API ID
+   curl -X PUT http://localhost:8080/api/apis/1 \
+     -H "Content-Type: application/json" \
+     -H "Authorization: peter" \
+     -d '{
+       "description": "已更新的API說明"
+     }'
    ```
 
-   現在，找到被更新的用戶記錄，觀察：
-   - `createdBy`和`createdCompany/Unit/Name`仍然保留原始創建者(kenbai)的信息
-   - `modifiedBy`和`modifiedCompany/Unit/Name`已變更為新的修改者(shawn)的信息
-   - `modifiedTime`已更新為最新的時間
+### 測試環境配置功能
 
-### 步驟6: 使用資料庫工具驗證
-
-1. **訪問pgAdmin**：
-   - 打開瀏覽器訪問：http://localhost:5050
-   - 使用以下憑據登入：
-     - 郵箱：admin@example.com
-     - 密碼：admin
-
-2. **連接到資料庫**：
-   - 添加新服務器（如果尚未添加）
-   - 使用以下連接信息：
-     - 主機：postgres
-     - 端口：5432
-     - 數據庫：auditing
-     - 用戶名：postgres
-     - 密碼：postgres
-
-3. **查詢審計表**：
-   執行以下SQL查詢，直接查看資料庫中的審計記錄：
-
-   ```sql
-   SELECT u.username, 
-          u.created_by, u.created_company, u.created_unit, u.created_name, u.created_time,
-          u.modified_by, u.modified_company, u.modified_unit, u.modified_name, u.modified_time
-   FROM pf_user u
-   WHERE u.username LIKE 'demo-user%'
-   ORDER BY u.created_time;
+1. **創建環境配置**：
+   ```bash
+   curl -X POST http://localhost:8080/api/environments \
+     -H "Content-Type: application/json" \
+     -H "Authorization: kenbai" \
+     -d '{
+       "name": "測試環境3",
+       "description": "第三個測試環境配置",
+       "type": "DEV",
+       "configValue": "{\"server\":\"dev.example.com\",\"port\":8088}",
+       "status": 0
+     }'
    ```
 
-   注意觀察：
-   - 時間戳是否以台灣時區(UTC+8)正確顯示
-   - 創建者和修改者資訊是否正確無誤
-
-### 步驟7: 探索時區處理
-
-1. **查看當前系統和資料庫時區**：
-   在pgAdmin中執行：
-
-   ```sql
-   SHOW timezone;
-   SELECT NOW();
+2. **更新環境配置**：
+   ```bash
+   # 使用從上一步返回的環境ID
+   curl -X PUT http://localhost:8080/api/environments/9 \
+     -H "Content-Type: application/json" \
+     -H "Authorization: kenbai" \
+     -d '{
+       "name": "測試環境3-已更新",
+       "description": "已更新的測試環境配置",
+       "type": "DEV",
+       "configValue": "{\"server\":\"updated.example.com\",\"port\":8090}",
+       "status": 0
+     }'
    ```
 
-2. **比較Java時間和資料庫時間**：
-   檢查`created_time`和`modified_time`的值是否與實際操作時間一致。
+3. **審核環境配置**：
+   ```bash
+   curl -X POST http://localhost:8080/api/environments/9/review \
+     -H "Content-Type: application/json" \
+     -H "Authorization: peter"
+   ```
 
-### 重要結論
+4. **部署環境配置**：
+   ```bash
+   curl -X POST http://localhost:8080/api/environments/9/deploy \
+     -H "Content-Type: application/json" \
+     -H "Authorization: shawn" \
+     -d '{
+       "version": "1.0.1"
+     }'
+   ```
 
-通過完成以上步驟，您已經親身體驗了整個審計數據流：
-
-1. **資料來源**：HTTP頭中的用戶ID → UserContext (ThreadLocal) → AuditorAware → JPA審計機制
-2. **擴展處理**：實體監聽器在保存前查詢用戶詳細信息並填充擴展欄位
-3. **時間處理**：系統在多個層面確保時區正確設置，時間戳準確無誤
-4. **資料完整性**：即使用戶詳細資料將來變更，歷史審計記錄仍保持不變
-
-這個演示展示了如何利用Spring Data JPA審計功能實現產品級別的審計追蹤，並通過擴展實現更詳細的審計信息記錄。
+通過以上步驟，您可以全面了解系統的審計功能及其在不同業務場景中的應用。
  

@@ -178,40 +178,6 @@ public class UserController {
     }
     
     /**
-     * 提供示例CURL命令
-     */
-    @GetMapping("/curl-example")
-    public Map<String, String> getCurlExample() {
-        Map<String, String> result = new HashMap<>();
-        
-        String curlCmd = "curl -X POST http://localhost:8080/api/users \\\n" +
-                         "-H \"Content-Type: application/json\" \\\n" +
-                         "-H \"Authorization: kenbai\" \\\n" +
-                         "-d '{\n" +
-                         "  \"name\": \"測試用戶\", \n" +
-                         "  \"description\": \"測試描述\", \n" +
-                         "  \"email\": \"test@example.com\", \n" +
-                         "  \"username\": \"testuser\", \n" +
-                         "  \"password\": \"password123\", \n" +
-                         "  \"statusId\": \"1\"\n" +
-                         "}'";
-        
-        result.put("createUserExample", curlCmd);
-        
-        String updateCmd = "curl -X PUT http://localhost:8080/api/users/1 \\\n" +
-                          "-H \"Content-Type: application/json\" \\\n" +
-                          "-H \"Authorization: peter\" \\\n" +
-                          "-d '{\n" +
-                          "  \"name\": \"已更新的用戶\", \n" +
-                          "  \"description\": \"已更新的描述\"\n" +
-                          "}'";
-        
-        result.put("updateUserExample", updateCmd);
-        
-        return result;
-    }
-    
-    /**
      * 從 Authorization 頭中提取令牌
      */
     private String extractToken(String authHeader) {
