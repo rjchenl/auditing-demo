@@ -67,22 +67,34 @@ public class TokenService {
      * 從token中獲取用戶信息
      */
     public Map<String, String> getUserInfoFromToken(String token) {
-        if (token == null || token.isEmpty()) {
-            log.warn("Token為空，無法獲取用戶信息");
-            return null;
-        }
+        // 實際項目中，這裡應該解析 JWT 或從數據庫中查詢用戶信息
+        // 這裡僅為演示提供模擬數據
+        Map<String, String> userInfo = new HashMap<>();
         
-        // 如果token中包含Bearer前綴，則去除
-        if (token.startsWith("Bearer ")) {
-            token = token.substring(7);
-        }
-        
-        // 直接根據token獲取用戶信息
-        Map<String, String> userInfo = TOKEN_USER_MAP.get(token.toLowerCase());
-        
-        if (userInfo == null) {
-            log.warn("未找到token [{}] 對應的用戶信息", token);
-            return null;
+        // 模擬不同的用戶令牌返回不同的用戶信息
+        if (token.equals("test-token")) {
+            userInfo.put("userId", "1001");
+            userInfo.put("username", "test.user");
+            userInfo.put("name", "測試使用者");
+            userInfo.put("email", "test.user@example.com");
+            userInfo.put("company", "測試公司");
+            userInfo.put("unit", "研發部門");
+            userInfo.put("roles", "ADMIN,USER");
+        } else if (token.equals("admin-token")) {
+            userInfo.put("userId", "1002");
+            userInfo.put("username", "admin.user");
+            userInfo.put("name", "管理員");
+            userInfo.put("email", "admin@example.com");
+            userInfo.put("company", "測試公司");
+            userInfo.put("unit", "管理部門");
+            userInfo.put("roles", "SUPER_ADMIN");
+        } else {
+            // 默認用戶信息
+            userInfo.put("userId", "0");
+            userInfo.put("username", "system");
+            userInfo.put("name", "系統用戶");
+            userInfo.put("email", "system@example.com");
+            userInfo.put("roles", "SYSTEM");
         }
         
         return userInfo;

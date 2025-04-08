@@ -157,4 +157,29 @@ COMMENT ON COLUMN pf_environment.deployed_time IS '部署時間';
 COMMENT ON COLUMN pf_environment.deployed_company IS '部署人員公司';
 COMMENT ON COLUMN pf_environment.deployed_unit IS '部署人員單位';
 
+        -- 創建複雜審計示範表
+CREATE TABLE pf_demo_complex_audit (
+    id                  bigserial
+        constraint pf_demo_complex_audit_pk
+            primary key,
+    name                varchar(100)                         not null,
+    description         text,
+    -- 複雜審計欄位（使用 JSON 類型存儲完整的用戶資訊）
+    created_by_user     jsonb                               not null,
+    created_time        timestamp    default now()           not null,
+    last_modified_by_user jsonb                             not null,
+    last_modified_time  timestamp    default now()           not null,
+    version            integer      default 0               not null
+);
+
+COMMENT ON TABLE pf_demo_complex_audit IS '複雜審計示範表';
+COMMENT ON COLUMN pf_demo_complex_audit.id IS '主鍵';
+COMMENT ON COLUMN pf_demo_complex_audit.name IS '名稱';
+COMMENT ON COLUMN pf_demo_complex_audit.description IS '描述';
+COMMENT ON COLUMN pf_demo_complex_audit.created_by_user IS '創建者完整資訊（JSON格式）';
+COMMENT ON COLUMN pf_demo_complex_audit.created_time IS '創建時間';
+COMMENT ON COLUMN pf_demo_complex_audit.last_modified_by_user IS '最後修改者完整資訊（JSON格式）';
+COMMENT ON COLUMN pf_demo_complex_audit.last_modified_time IS '最後修改時間';
+COMMENT ON COLUMN pf_demo_complex_audit.version IS '版本號';
+
 
