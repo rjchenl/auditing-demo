@@ -2,6 +2,9 @@ package com.example.auditingdemo.controller;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.stream.Collectors;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -163,7 +166,7 @@ public class EnvironmentController {
             return environmentRepository.findById(id)
                     .map(environment -> {
                         // 執行審核操作
-                        environmentAuditListener.performReview(environment, token);
+                        environmentAuditListener.performReview(environment, "已審核", "已完成審核");
                         
                         // 保存更新
                         Environment reviewedEnvironment = environmentRepository.save(environment);
@@ -211,7 +214,15 @@ public class EnvironmentController {
                         }
                         
                         // 執行部署操作
-                        environmentAuditListener.performDeploy(environment, token, newVersion);
+                        environmentAuditListener.performDeploy(environment, "已部署", "已完成部署");
+                        
+                        // 設置版本號（如果提供）
+                        if (newVersion != null && !newVersion.isEmpty()) {
+                            environment.setVersion(newVersion);
+                        } else if (environment.getVersion() == null) {
+                            // 如果沒有提供版本號且當前版本為空，則設置默認版本號
+                            environment.setVersion("1.0.0");
+                        }
                         
                         // 保存更新
                         Environment deployedEnvironment = environmentRepository.save(environment);
@@ -237,6 +248,102 @@ public class EnvironmentController {
     @GetMapping("/pending-deploy")
     public List<Environment> getPendingDeployEnvironments() {
         return environmentRepository.findByReviewedByIsNotNullAndDeployedByIsNull();
+    }
+    
+    /**
+     * 檢查環境配置的審計欄位
+     * 展示標準審計欄位和自定義審計欄位的內容
+     */
+    @GetMapping("/audit-fields")
+    public ResponseEntity<List<Map<String, Object>>> getEnvironmentsAuditFields() {
+        List<Environment> environments = environmentRepository.findAll();
+        
+        if (environments.isEmpty()) {
+            return ResponseEntity.ok().body(List.of());
+        }
+        
+        List<Map<String, Object>> auditFieldsList = environments.stream()
+            .map(env -> {
+                Map<String, Object> auditInfo = new HashMap<>();
+                
+                // 基本識別信息
+                auditInfo.put("id", env.getId());
+                auditInfo.put("name", env.getName());
+                
+                // 標準審計欄位
+                auditInfo.put("created_by", env.getCreatedBy());
+                auditInfo.put("created_time", env.getCreatedTime());
+                auditInfo.put("modified_by", env.getModifiedBy());
+                auditInfo.put("modified_time", env.getModifiedTime());
+                
+                // 擴展審計欄位
+                auditInfo.put("created_company", env.getCreatedCompany());
+                auditInfo.put("created_unit", env.getCreatedUnit());
+                auditInfo.put("modified_company", env.getModifiedCompany());
+                auditInfo.put("modified_unit", env.getModifiedUnit());
+                
+                // 環境特有審計欄位
+                auditInfo.put("reviewed_by", env.getReviewedBy());
+                auditInfo.put("reviewed_time", env.getReviewedTime());
+                auditInfo.put("reviewed_company", env.getReviewedCompany());
+                auditInfo.put("reviewed_unit", env.getReviewedUnit());
+                auditInfo.put("deployed_by", env.getDeployedBy());
+                auditInfo.put("deployed_time", env.getDeployedTime());
+                auditInfo.put("deployed_company", env.getDeployedCompany());
+                auditInfo.put("deployed_unit", env.getDeployedUnit());
+                auditInfo.put("version", env.getVersion());
+                auditInfo.put("status", env.getStatus());
+                
+                return auditInfo;
+            })
+            .collect(Collectors.toList());
+        
+        return ResponseEntity.ok().body(auditFieldsList);
+    }
+    
+    /**
+     * 根據ID檢查單個環境配置的審計欄位
+     */
+    @GetMapping("/{id}/audit-fields")
+    public ResponseEntity<Map<String, Object>> getEnvironmentAuditFieldsById(@PathVariable Long id) {
+        Optional<Environment> environmentOpt = environmentRepository.findById(id);
+        
+        if (environmentOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        Environment env = environmentOpt.get();
+        Map<String, Object> auditInfo = new HashMap<>();
+        
+        // 基本識別信息
+        auditInfo.put("id", env.getId());
+        auditInfo.put("name", env.getName());
+        
+        // 標準審計欄位
+        auditInfo.put("created_by", env.getCreatedBy());
+        auditInfo.put("created_time", env.getCreatedTime());
+        auditInfo.put("modified_by", env.getModifiedBy());
+        auditInfo.put("modified_time", env.getModifiedTime());
+        
+        // 擴展審計欄位
+        auditInfo.put("created_company", env.getCreatedCompany());
+        auditInfo.put("created_unit", env.getCreatedUnit());
+        auditInfo.put("modified_company", env.getModifiedCompany());
+        auditInfo.put("modified_unit", env.getModifiedUnit());
+        
+        // 環境特有審計欄位
+        auditInfo.put("reviewed_by", env.getReviewedBy());
+        auditInfo.put("reviewed_time", env.getReviewedTime());
+        auditInfo.put("reviewed_company", env.getReviewedCompany());
+        auditInfo.put("reviewed_unit", env.getReviewedUnit());
+        auditInfo.put("deployed_by", env.getDeployedBy());
+        auditInfo.put("deployed_time", env.getDeployedTime());
+        auditInfo.put("deployed_company", env.getDeployedCompany());
+        auditInfo.put("deployed_unit", env.getDeployedUnit());
+        auditInfo.put("version", env.getVersion());
+        auditInfo.put("status", env.getStatus());
+        
+        return ResponseEntity.ok().body(auditInfo);
     }
     
     /**

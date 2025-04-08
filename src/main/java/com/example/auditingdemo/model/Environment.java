@@ -8,7 +8,7 @@ import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import com.example.auditingdemo.audit.Auditable;
+import com.example.auditingdemo.audit.EnvironmentAuditableInterface;
 import com.example.auditingdemo.listener.AuditEntityListener;
 import com.example.auditingdemo.listener.EnvironmentAuditListener;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -36,8 +36,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Auditable
-public class Environment {
+public class Environment implements EnvironmentAuditableInterface {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -121,4 +120,26 @@ public class Environment {
     
     @Column(name = "deployed_unit")
     private String deployedUnit;
+    
+    // =====新增的審核相關欄位=====
+    
+    @Column(name = "reviewer_name")
+    private String reviewerName;
+    
+    @Column(name = "review_status")
+    private String reviewStatus;
+    
+    @Column(name = "review_comment")
+    private String reviewComment;
+    
+    // =====新增的部署相關欄位=====
+    
+    @Column(name = "deployer_name")
+    private String deployerName;
+    
+    @Column(name = "deploy_status")
+    private String deployStatus;
+    
+    @Column(name = "deploy_comment")
+    private String deployComment;
 } 

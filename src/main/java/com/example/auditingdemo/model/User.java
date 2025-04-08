@@ -8,7 +8,7 @@ import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import com.example.auditingdemo.audit.Auditable;
+import com.example.auditingdemo.audit.UserAuditableInterface;
 import com.example.auditingdemo.listener.AuditEntityListener;
 
 import jakarta.persistence.Column;
@@ -34,8 +34,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Auditable
-public class User {
+public class User implements UserAuditableInterface {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -8,6 +8,44 @@
 - 擴展審計功能：記錄創建者/修改者的詳細信息（公司、部門、姓名）
 - 環境配置審計功能：除基本審計外，還包含審核與部署相關的審計欄位
 
+## 最近更新
+
+### 介面式審計架構
+
+我們最近對審計功能進行了重大升級，從原來的註解式審計方式轉向基於介面的層次化審計結構：
+
+1. **審計介面架構**：
+   - `AuditableInterface`：基礎審計介面，包含所有實體共用的標準審計欄位
+   - `UserAuditableInterface`：擴展自基礎介面，添加用戶相關審計欄位
+   - `EnvironmentAuditableInterface`：擴展自基礎介面，添加環境特有的審計欄位
+
+2. **專用監聽器**：
+   - `AuditEntityListener`：處理基礎和用戶審計欄位
+   - `EnvironmentAuditListener`：處理環境特有審計欄位（審核、部署）
+
+3. **特別流程支援**：
+   - 添加了審核流程：`performReview` 方法填充審核相關欄位
+   - 添加了部署流程：`performDeploy` 方法填充部署相關欄位
+
+### Demo API 更新
+
+1. **User API**:
+   - POST `/api/users` - 創建用戶（展示基本審計欄位+用戶擴展審計欄位）
+   - PUT `/api/users/{id}` - 更新用戶（展示審計欄位變化）
+   - GET `/api/users/audit` - 查看用戶審計信息
+
+2. **API管理 API**:
+   - POST `/api/apis` - 創建API記錄（展示與User相同的審計模式）
+   - PUT `/api/apis/{id}` - 更新API記錄
+   
+3. **Environment API**:
+   - POST `/api/environments` - 創建環境配置
+   - PUT `/api/environments/{id}` - 更新環境配置
+   - POST `/api/environments/{id}/review` - 審核環境配置（展示特殊審計欄位）
+   - POST `/api/environments/{id}/deploy` - 部署環境配置（展示特殊審計欄位）
+   - GET `/api/environments/audit-fields` - 獲取環境審計欄位
+   - GET `/api/environments/{id}/audit-fields` - 獲取特定環境審計欄位
+
 ## 技術棧
 
 - Spring Boot 3.4.4
@@ -15,6 +53,132 @@
 - PostgreSQL
 - Maven
 - Docker & Docker Compose
+
+## 層次化審計介面架構
+
+### 介面結構
+
+```
+AuditableInterface (基礎審計介面)
+├── UserAuditableInterface (用戶審計介面)
+└── EnvironmentAuditableInterface (環境審計介面)
+```
+
+### 1. AuditableInterface
+
+基礎審計介面，包含所有實體共用的標準審計欄位：
+
+```java
+public interface AuditableInterface {
+    // 標準審計欄位
+    String getCreatedBy();
+    void setCreatedBy(String createdBy);
+    LocalDateTime getCreatedTime();
+    void setCreatedTime(LocalDateTime createdTime);
+    String getModifiedBy();
+    void setModifiedBy(String modifiedBy);
+    LocalDateTime getModifiedTime();
+    void setModifiedTime(LocalDateTime modifiedTime);
+    
+    // 擴展審計欄位
+    String getCreatedCompany();
+    void setCreatedCompany(String createdCompany);
+    String getCreatedUnit();
+    void setCreatedUnit(String createdUnit);
+    String getModifiedCompany();
+    void setModifiedCompany(String modifiedCompany);
+    String getModifiedUnit();
+    void setModifiedUnit(String modifiedUnit);
+}
+```
+
+### 2. UserAuditableInterface
+
+擴展自 `AuditableInterface`，添加用戶相關審計欄位：
+
+```java
+public interface UserAuditableInterface extends AuditableInterface {
+    // 用戶相關的擴展審計欄位
+    String getCreatedName();
+    void setCreatedName(String createdName);
+    String getModifiedName();
+    void setModifiedName(String modifiedName);
+}
+```
+
+### 3. EnvironmentAuditableInterface
+
+擴展自 `AuditableInterface`，添加環境配置特有的審計欄位：
+
+```java
+public interface EnvironmentAuditableInterface extends AuditableInterface {
+    // 審核相關欄位
+    String getReviewedBy();
+    void setReviewedBy(String reviewedBy);
+    LocalDateTime getReviewedTime();
+    void setReviewedTime(LocalDateTime reviewedTime);
+    // ... 其他審核欄位
+    
+    // 部署相關欄位
+    String getDeployedBy();
+    void setDeployedBy(String deployedBy);
+    LocalDateTime getDeployedTime();
+    void setDeployedTime(LocalDateTime deployedTime);
+    // ... 其他部署欄位
+    
+    // 環境特有欄位
+    String getVersion();
+    void setVersion(String version);
+    Integer getStatus();
+    void setStatus(Integer status);
+}
+```
+
+### 監聽器實現
+
+#### 1. AuditEntityListener
+
+處理基礎和用戶審計欄位：
+
+```java
+@PrePersist
+public void prePersist(Object entity) {
+    if (entity instanceof AuditableInterface) {
+        log.debug("實體創建前填充擴展審計欄位: {}", entity.getClass().getSimpleName());
+        processAuditFieldsWithInterface((AuditableInterface) entity, true);
+        
+        // 處理特定於用戶的審計欄位
+        if (entity instanceof UserAuditableInterface) {
+            processUserAuditFields((UserAuditableInterface) entity, true);
+        }
+    }
+}
+```
+
+#### 2. EnvironmentAuditListener
+
+環境特有審計處理：
+
+```java
+public void performReview(EnvironmentAuditableInterface entity, String reviewStatus, String reviewComment) {
+    // 獲取當前用戶
+    String token = UserContext.getCurrentUser();
+    String reviewerName = "系統";
+    
+    if (token != null && !token.isEmpty()) {
+        TokenService tokenService = applicationContext.getBean(TokenService.class);
+        var userInfo = tokenService.getUserInfoFromToken(token);
+        reviewerName = userInfo.get("name");
+    }
+    
+    // 設置審核相關欄位
+    entity.setReviewerName(reviewerName);
+    entity.setReviewStatus(reviewStatus);
+    entity.setReviewComment(reviewComment);
+    entity.setReviewedBy(token);
+    entity.setReviewedTime(LocalDateTime.now());
+}
+```
 
 ## JWT令牌與用戶資訊的對應機制
 
@@ -90,7 +254,7 @@ docker-compose up -d
 # 使用kenbai身份創建用戶
 curl -X POST http://localhost:8080/api/users \
   -H "Content-Type: application/json" \
-  -H "Authorization: kenbai" \
+  -H "Authorization: Bearer kenbai" \
   -d '{
     "name": "測試用戶",
     "description": "測試描述",
@@ -119,7 +283,7 @@ curl -X POST http://localhost:8080/api/users \
 # 使用peter身份更新用戶
 curl -X PUT http://localhost:8080/api/users/{user_id} \
   -H "Content-Type: application/json" \
-  -H "Authorization: peter" \
+  -H "Authorization: Bearer peter" \
   -d '{
     "name": "已更新的用戶",
     "description": "已更新的描述",
@@ -154,7 +318,7 @@ API管理功能與用戶管理類似，共用相同的擴展審計欄位結構�
 ```bash
 curl -X POST http://localhost:8080/api/apis \
   -H "Content-Type: application/json" \
-  -H "Authorization: kenbai" \
+  -H "Authorization: Bearer kenbai" \
   -d '{
     "apiname": "test-api",
     "description": "測試API說明"
@@ -178,7 +342,7 @@ curl -X POST http://localhost:8080/api/apis \
 ```bash
 curl -X PUT http://localhost:8080/api/apis/{id} \
   -H "Content-Type: application/json" \
-  -H "Authorization: peter" \
+  -H "Authorization: Bearer peter" \
   -d '{
     "description": "已更新的API說明"
   }'
@@ -205,7 +369,7 @@ curl -X PUT http://localhost:8080/api/apis/{id} \
 ```bash
 curl -X POST http://localhost:8080/api/environments \
   -H "Content-Type: application/json" \
-  -H "Authorization: kenbai" \
+  -H "Authorization: Bearer kenbai" \
   -d '{
     "name": "測試環境",
     "description": "用於測試的環境配置",
@@ -240,7 +404,7 @@ curl -X POST http://localhost:8080/api/environments \
 ```bash
 curl -X PUT http://localhost:8080/api/environments/{id} \
   -H "Content-Type: application/json" \
-  -H "Authorization: kenbai" \
+  -H "Authorization: Bearer kenbai" \
   -d '{
     "description": "已更新的環境配置",
     "configValue": "{\"server\":\"updated.example.com\",\"port\":8088}"
@@ -263,7 +427,7 @@ curl -X PUT http://localhost:8080/api/environments/{id} \
 ```bash
 curl -X POST http://localhost:8080/api/environments/{id}/review \
   -H "Content-Type: application/json" \
-  -H "Authorization: peter"
+  -H "Authorization: Bearer peter"
 ```
 
 **審計欄位變化**：
@@ -271,26 +435,24 @@ curl -X POST http://localhost:8080/api/environments/{id}/review \
 - `created_time` = 不變 (保持原始創建時間)
 - `created_company` = 不變 (保持原始公司記錄)
 - `created_unit` = 不變 (保持原始部門記錄)
-- `modified_by` = "system" (系統自動設置)
+- `modified_by` = "peter" (更新為當前用戶)
 - `modified_time` = 當前時間 (更新為操作時間)
-- `modified_company` = "System" (系統預設值)
-- `modified_unit` = "System" (系統預設值)
+- `modified_company` = "拓連科技" (peter的公司)
+- `modified_unit` = "研發部" (peter的部門)
 - `reviewed_by` = "peter" (審核人員ID)
 - `reviewed_time` = 當前時間 (審核時間)
-- `reviewed_company` = "拓連科技" (peter的公司)
-- `reviewed_unit` = "研發部" (peter的部門)
+- `reviewerName` = "彼得" (peter的姓名)
+- `reviewStatus` = "已審核" (審核狀態)
+- `reviewComment` = "已完成審核" (審核評論)
 - `deployed_by` = null (尚未部署)
 - `deployed_time` = null (尚未部署)
-- `deployed_company` = null (尚未部署)
-- `deployed_unit` = null (尚未部署)
-- `status` = 2 (已審核狀態)
 
 #### 部署環境配置
 
 ```bash
 curl -X POST http://localhost:8080/api/environments/{id}/deploy \
   -H "Content-Type: application/json" \
-  -H "Authorization: shawn" \
+  -H "Authorization: Bearer shawn" \
   -d '{
     "version": "1.0.1"
   }'
@@ -301,18 +463,17 @@ curl -X POST http://localhost:8080/api/environments/{id}/deploy \
 - `created_time` = 不變 (保持原始創建時間)
 - `created_company` = 不變 (保持原始公司記錄)
 - `created_unit` = 不變 (保持原始部門記錄)
-- `modified_by` = "system" (系統自動設置)
+- `modified_by` = "shawn" (更新為當前用戶)
 - `modified_time` = 當前時間 (更新為操作時間)
-- `modified_company` = "System" (系統預設值)
-- `modified_unit` = "System" (系統預設值)
+- `modified_company` = "拓連科技" (shawn的公司)
+- `modified_unit` = "產品部" (shawn的部門)
 - `reviewed_by` = 不變 (保持審核人員記錄)
 - `reviewed_time` = 不變 (保持審核時間記錄)
-- `reviewed_company` = 不變 (保持審核人員公司記錄)
-- `reviewed_unit` = 不變 (保持審核人員部門記錄)
 - `deployed_by` = "shawn" (部署人員ID)
 - `deployed_time` = 當前時間 (部署時間)
-- `deployed_company` = "拓連科技" (shawn的公司)
-- `deployed_unit` = "產品部" (shawn的部門)
+- `deployerName` = "肖恩" (shawn的姓名)
+- `deployStatus` = "已部署" (部署狀態)
+- `deployComment` = "已完成部署" (部署評論)
 - `status` = 3 (已部署狀態)
 - `version` = "1.0.1" (請求中指定的版本號)
 
@@ -362,6 +523,7 @@ PostgreSQL連接信息：
    - 標準審計欄位：與pf_user相同，但不含name欄位
    - 特定擴展審計欄位：`created_company`, `created_unit`, `modified_company`, `modified_unit`
    - 特定業務審計欄位：`reviewed_by`, `reviewed_time`, `reviewed_company`, `reviewed_unit`, `deployed_by`, `deployed_time`, `deployed_company`, `deployed_unit`
+   - 環境特有審計欄位：`reviewer_name`, `review_status`, `review_comment`, `deployer_name`, `deploy_status`, `deploy_comment`
 
 ## 核心類說明
 
@@ -369,115 +531,9 @@ PostgreSQL連接信息：
 2. **AuditEntityListener**: 通用審計監聽器，負責填充擴展審計欄位
 3. **EnvironmentAuditListener**: 環境專用審計監聽器，處理審核和部署審計
 4. **CustomAuditorAware**: 提供當前操作者ID給Spring JPA
-
-## 完整演示流程
-
-### 測試用戶功能
-
-1. **創建用戶**：
-   ```bash
-   curl -X POST http://localhost:8080/api/users \
-     -H "Content-Type: application/json" \
-     -H "Authorization: kenbai" \
-     -d '{
-       "name": "測試用戶1",
-       "description": "測試描述1",
-       "email": "test1@example.com",
-       "username": "testuser1",
-       "password": "password123",
-       "statusId": "1"
-     }'
-   ```
-
-2. **更新用戶**：
-   ```bash
-   # 使用從上一步返回的用戶ID
-   curl -X PUT http://localhost:8080/api/users/43 \
-     -H "Content-Type: application/json" \
-     -H "Authorization: peter" \
-     -d '{
-       "name": "已更新的用戶1",
-       "description": "已更新的描述1",
-       "email": "updated1@example.com"
-     }'
-   ```
-
-3. **查看審計信息**：
-   ```bash
-   curl http://localhost:8080/api/users/audit
-   ```
-
-### 測試API功能
-
-1. **創建API**：
-   ```bash
-   curl -X POST http://localhost:8080/api/apis \
-     -H "Content-Type: application/json" \
-     -H "Authorization: kenbai" \
-     -d '{
-       "apiname": "test-api",
-       "description": "測試API說明"
-     }'
-   ```
-
-2. **更新API**：
-   ```bash
-   # 使用從上一步返回的API ID
-   curl -X PUT http://localhost:8080/api/apis/1 \
-     -H "Content-Type: application/json" \
-     -H "Authorization: peter" \
-     -d '{
-       "description": "已更新的API說明"
-     }'
-   ```
-
-### 測試環境配置功能
-
-1. **創建環境配置**：
-   ```bash
-   curl -X POST http://localhost:8080/api/environments \
-     -H "Content-Type: application/json" \
-     -H "Authorization: kenbai" \
-     -d '{
-       "name": "測試環境3",
-       "description": "第三個測試環境配置",
-       "type": "DEV",
-       "configValue": "{\"server\":\"dev.example.com\",\"port\":8088}",
-       "status": 0
-     }'
-   ```
-
-2. **更新環境配置**：
-   ```bash
-   # 使用從上一步返回的環境ID
-   curl -X PUT http://localhost:8080/api/environments/9 \
-     -H "Content-Type: application/json" \
-     -H "Authorization: kenbai" \
-     -d '{
-       "name": "測試環境3-已更新",
-       "description": "已更新的測試環境配置",
-       "type": "DEV",
-       "configValue": "{\"server\":\"updated.example.com\",\"port\":8090}",
-       "status": 0
-     }'
-   ```
-
-3. **審核環境配置**：
-   ```bash
-   curl -X POST http://localhost:8080/api/environments/9/review \
-     -H "Content-Type: application/json" \
-     -H "Authorization: peter"
-   ```
-
-4. **部署環境配置**：
-   ```bash
-   curl -X POST http://localhost:8080/api/environments/9/deploy \
-     -H "Content-Type: application/json" \
-     -H "Authorization: shawn" \
-     -d '{
-       "version": "1.0.1"
-     }'
-   ```
+5. **AuditableInterface**: 基礎審計介面
+6. **UserAuditableInterface**: 用戶擴展審計介面
+7. **EnvironmentAuditableInterface**: 環境配置特有審計介面
 
 通過以上步驟，您可以全面了解系統的審計功能及其在不同業務場景中的應用。
  
