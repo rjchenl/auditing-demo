@@ -1,0 +1,182 @@
+@startuml "審計欄位關系圖"
+!theme plain
+skinparam backgroundColor white
+skinparam ArrowColor #666666
+skinparam PackageBackgroundColor #FEFECE
+skinparam PackageBorderColor #999999
+skinparam ComponentBackgroundColor #DDDDDD
+skinparam ComponentBorderColor #666666
+
+title "審計欄位結構圖"
+
+package "標準審計欄位" #LightBlue {
+  [created_by] as CB
+  [created_time] as CT
+  [modified_by] as MB
+  [modified_time] as MT
+  
+  note bottom of CB
+    @CreatedBy 註解
+    Spring Data JPA 自動填充
+  end note
+  
+  note bottom of CT
+    @CreatedDate 註解
+    Spring Data JPA 自動填充
+  end note
+  
+  note bottom of MB
+    @LastModifiedBy 註解
+    Spring Data JPA 自動填充
+  end note
+  
+  note bottom of MT
+    @LastModifiedDate 註解
+    Spring Data JPA 自動填充
+  end note
+}
+
+package "擴展審計欄位" #LightGreen {
+  [created_company] as CC
+  [created_unit] as CU
+  [modified_company] as MC
+  [modified_unit] as MU
+  
+  note bottom of CC
+    AuditEntityListener
+    填充來自 TokenService 的公司信息
+  end note
+  
+  note bottom of CU
+    AuditEntityListener
+    填充來自 TokenService 的部門信息
+  end note
+}
+
+package "用戶擴展審計欄位" #LightYellow {
+  [created_name] as CN
+  [modified_name] as MN
+  
+  note bottom of CN
+    AuditEntityListener
+    透過 UserAuditableInterface
+    填充創建者姓名
+  end note
+  
+  note bottom of MN
+    AuditEntityListener
+    透過 UserAuditableInterface
+    填充修改者姓名
+  end note
+}
+
+package "環境特有審計欄位" #LightCoral {
+  package "審核相關欄位" {
+    [reviewed_by] as RB
+    [reviewed_time] as RT
+    [reviewer_name] as RN
+    [review_status] as RS
+    [review_comment] as RC
+  }
+  
+  package "部署相關欄位" {
+    [deployed_by] as DB
+    [deployed_time] as DT
+    [deployer_name] as DN
+    [deploy_status] as DS
+    [deploy_comment] as DC
+    [version] as V
+  }
+  
+  note bottom of RB
+    EnvironmentAuditListener
+    performReview() 方法填充
+  end note
+  
+  note bottom of DB
+    EnvironmentAuditListener
+    performDeploy() 方法填充
+  end note
+}
+
+' 關係定義
+CB --> CC : 同一用戶
+CB --> CU : 同一用戶
+CB --> CN : 同一用戶
+
+MB --> MC : 同一用戶
+MB --> MU : 同一用戶
+MB --> MN : 同一用戶
+
+CB ..> RB : 不同操作者
+RB ..> DB : 不同操作者
+
+' 實體欄位關係
+rectangle "User 實體" as User #LightCyan {
+  component "標準審計欄位" as UserStd
+  component "擴展審計欄位" as UserExt
+  component "用戶擴展審計欄位" as UserName
+}
+
+rectangle "Api 實體" as Api #LightCyan {
+  component "標準審計欄位" as ApiStd
+  component "擴展審計欄位" as ApiExt
+  component "用戶擴展審計欄位" as ApiName
+}
+
+rectangle "Environment 實體" as Env #LightCyan {
+  component "標準審計欄位" as EnvStd
+  component "擴展審計欄位" as EnvExt
+  component "環境特有審計欄位" as EnvSpec
+}
+
+' 實體與欄位的對應關係
+CB ---> UserStd : 屬於
+CT ---> UserStd : 屬於
+MB ---> UserStd : 屬於
+MT ---> UserStd : 屬於
+
+CC ---> UserExt : 屬於
+CU ---> UserExt : 屬於
+MC ---> UserExt : 屬於
+MU ---> UserExt : 屬於
+
+CN ---> UserName : 屬於
+MN ---> UserName : 屬於
+
+CB ---> ApiStd : 屬於
+CT ---> ApiStd : 屬於
+MB ---> ApiStd : 屬於
+MT ---> ApiStd : 屬於
+
+CC ---> ApiExt : 屬於
+CU ---> ApiExt : 屬於
+MC ---> ApiExt : 屬於
+MU ---> ApiExt : 屬於
+
+CN ---> ApiName : 屬於
+MN ---> ApiName : 屬於
+
+CB ---> EnvStd : 屬於
+CT ---> EnvStd : 屬於
+MB ---> EnvStd : 屬於
+MT ---> EnvStd : 屬於
+
+CC ---> EnvExt : 屬於
+CU ---> EnvExt : 屬於
+MC ---> EnvExt : 屬於
+MU ---> EnvExt : 屬於
+
+RB ---> EnvSpec : 屬於
+RT ---> EnvSpec : 屬於
+RN ---> EnvSpec : 屬於
+RS ---> EnvSpec : 屬於
+RC ---> EnvSpec : 屬於
+DB ---> EnvSpec : 屬於
+DT ---> EnvSpec : 屬於
+DN ---> EnvSpec : 屬於
+DS ---> EnvSpec : 屬於
+DC ---> EnvSpec : 屬於
+V ---> EnvSpec : 屬於
+
+@enduml

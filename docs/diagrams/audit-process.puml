@@ -1,0 +1,78 @@
+@startuml "審計欄位處理流程"
+!theme plain
+skinparam backgroundColor white
+skinparam ArrowColor #666666
+skinparam ActivityBackgroundColor #FEFECE
+skinparam ActivityBorderColor #666666
+skinparam ActivityDiamondBackgroundColor #FFE2C9
+skinparam ActivityDiamondBorderColor #666666
+
+title "Spring Data JPA 審計欄位處理流程"
+
+|客戶端|
+start
+:發送請求帶 Authorization 頭;
+|服務端|
+:UserTokenInterceptor 攔截請求;
+:從請求中提取令牌;
+:將令牌存儲到 UserContext 中;
+
+|實體操作|
+partition "實體創建/更新" {
+  :調用 Repository 保存實體;
+  
+  fork
+    |標準審計處理|
+    partition "標準審計欄位處理" {
+      :AuditingEntityListener 觸發;
+      :調用 AuditorAware.getCurrentAuditor();
+      :CustomAuditorAware 從 UserContext 獲取令牌;
+      :TokenService 解析令牌獲取用戶 ID;
+      :填充 @CreatedBy/@LastModifiedBy 欄位;
+      :填充 @CreatedDate/@LastModifiedDate 欄位;
+    }
+    
+  fork again
+    |擴展審計處理|
+    partition "擴展審計欄位處理" {
+      :AuditEntityListener.prePersist/preUpdate 觸發;
+      :檢查實體是否實現 AuditableInterface;
+      if (實現 AuditableInterface?) then (是)
+        :從 UserContext 獲取同一令牌;
+        :TokenService 獲取用戶詳細信息;
+        :填充公司、部門等擴展審計欄位;
+        
+        if (實現 UserAuditableInterface?) then (是)
+          :填充用戶姓名等擴展欄位;
+        endif
+        
+        if (是環境實體?) then (是)
+          :環境特有欄位留空等待業務處理;
+        endif
+      endif
+    }
+  end fork
+  
+  :實體保存到數據庫;
+}
+
+|環境特殊操作|
+partition "環境特殊業務操作" {
+  if (需要審核?) then (是)
+    :調用 EnvironmentAuditListener.performReview();
+    :填充 reviewed_by, reviewed_time 等審計欄位;
+    :保存環境實體;
+  endif
+  
+  if (需要部署?) then (是)
+    :調用 EnvironmentAuditListener.performDeploy();
+    :填充 deployed_by, deployed_time 等審計欄位;
+    :保存環境實體;
+  endif
+}
+
+|數據庫|
+:實體及審計欄位持久化;
+stop
+
+@enduml

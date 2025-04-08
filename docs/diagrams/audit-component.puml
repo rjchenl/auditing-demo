@@ -1,0 +1,109 @@
+@startuml "審計元件圖"
+!theme plain
+skinparam backgroundColor white
+skinparam ArrowColor #666666
+skinparam ComponentBackgroundColor #FAFAFA
+skinparam ComponentBorderColor #333333
+skinparam InterfaceBackgroundColor #DDDDDD
+skinparam InterfaceBorderColor #666666
+
+title "審計元件交互圖"
+
+' 定義介面
+interface "AuditorAware<String>" as AA
+interface "AuditableInterface" as AI
+interface "UserAuditableInterface" as UAI
+interface "EnvironmentAuditableInterface" as EAI
+
+' 定義元件
+component "Spring Data JPA\nAuditing Framework" as SF {
+  component "AuditingEntityListener" as AEL
+  component "Spring EntityManager" as EM
+}
+
+component "自定義審計框架" as CF {
+  component "CustomAuditorAware" as CAA
+  component "AuditEntityListener" as AUL
+  component "EnvironmentAuditListener" as EAL
+}
+
+component "用戶上下文" as UC {
+  component "UserContext (ThreadLocal)" as UCT
+  component "TokenService" as TS
+  component "UserTokenInterceptor" as UTI
+}
+
+component "實體模型" as EM {
+  component "User Entity" as UE
+  component "Api Entity" as AE
+  component "Environment Entity" as EE
+}
+
+component "Web 層" as WL {
+  component "UserController" as UController
+  component "ApiController" as AController
+  component "EnvironmentController" as EController
+}
+
+component "數據庫" as DB {
+  component "PostgreSQL" as PG
+}
+
+' 定義關係
+CAA ..|> AA : 實現
+UTI --> UCT : 設置當前用戶
+UController --> UTI : 經過攔截器
+AController --> UTI : 經過攔截器
+EController --> UTI : 經過攔截器
+
+UController --> UE : 創建/更新
+AController --> AE : 創建/更新
+EController --> EE : 創建/更新
+EController --> EAL : 調用審核/部署
+
+UE --> AEL : 觸發標準審計
+UE --> AUL : 觸發擴展審計
+AE --> AEL : 觸發標準審計
+AE --> AUL : 觸發擴展審計
+EE --> AEL : 觸發標準審計
+EE --> AUL : 觸發擴展審計
+EE --> EAL : 環境特有審計
+
+AEL --> AA : 獲取當前用戶
+AUL --> UCT : 獲取當前用戶
+EAL --> UCT : 獲取當前用戶
+
+AA --> CAA : 實現
+CAA --> UCT : 獲取用戶令牌
+CAA --> TS : 解析令牌
+AUL --> TS : 獲取用戶詳情
+EAL --> TS : 獲取用戶詳情
+
+UE ..|> UAI : 實現
+AE ..|> UAI : 實現
+EE ..|> EAI : 實現
+UAI --|> AI : 繼承
+EAI --|> AI : 繼承
+
+UE --> EM : 持久化
+AE --> EM : 持久化
+EE --> EM : 持久化
+EM --> DB : 存儲數據
+
+' 標註流程
+note left of CAA
+  提供當前用戶 ID
+  用於標準審計欄位
+end note
+
+note bottom of AUL
+  處理擴展審計欄位
+  公司、部門、姓名等
+end note
+
+note left of EAL
+  處理環境特有審計
+  審核和部署流程
+end note
+
+@enduml

@@ -1,0 +1,99 @@
+@startuml "審計系統架構概覽"
+!theme plain
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam componentStyle uml2
+skinparam backgroundColor white
+skinparam ArrowColor #666666
+
+title "Spring Data JPA 審計系統架構"
+
+' 組件定義
+package "Spring Data JPA Auditing" {
+  [AuditingEntityListener] as AEL #LightBlue
+  [EnableJpaAuditing] as EJA #LightGreen
+  [AuditorAware<String>] as AA #LightGreen
+}
+
+package "標準審計注解" {
+  [CreatedBy] as CB #LightSkyBlue
+  [CreatedDate] as CD #LightSkyBlue
+  [LastModifiedBy] as LMB #LightSkyBlue
+  [LastModifiedDate] as LMD #LightSkyBlue
+}
+
+package "自定義審計框架" {
+  [AuditableInterface] as AI #LightCoral
+  [UserAuditableInterface] as UAI #LightCoral
+  [EnvironmentAuditableInterface] as EAI #LightCoral
+  [AuditEntityListener] as AUL #LightSalmon
+  [EnvironmentAuditListener] as EAL #LightSalmon
+  [CustomAuditorAware] as CAA #LightSalmon
+}
+
+package "用戶上下文" {
+  [UserContext] as UC #LightYellow
+  [TokenService] as TS #LightYellow
+  [UserTokenInterceptor] as UTI #LightYellow
+}
+
+package "實體模型" {
+  [User] as U #LightCyan
+  [Api] as API #LightCyan
+  [Environment] as ENV #LightCyan
+}
+
+' 關係定義
+' Spring Data JPA 配置
+EJA --> AA : 注入
+AA --> CAA : 實現
+
+' 審計監聽器
+AEL --> CB : 使用
+AEL --> CD : 使用
+AEL --> LMB : 使用
+AEL --> LMD : 使用
+
+' 用戶上下文流程
+UTI --> UC : 設置當前用戶
+CAA --> UC : 獲取當前用戶
+CAA --> TS : 解析令牌
+
+' 自定義審計監聽器
+AUL --> AI : 填充擴展欄位
+AUL --> UAI : 處理用戶審計欄位
+EAL --> EAI : 處理環境審計欄位
+AUL --> TS : 獲取用戶詳情
+
+' 實體與介面
+U ..|> UAI : 實現
+API ..|> UAI : 實現
+ENV ..|> EAI : 實現
+UAI --|> AI : 繼承
+EAI --|> AI : 繼承
+
+' 實體與監聽器
+U --> AEL : 使用
+U --> AUL : 使用
+API --> AEL : 使用
+API --> AUL : 使用
+ENV --> AEL : 使用
+ENV --> AUL : 使用
+ENV --> EAL : 使用
+
+note right of [Spring Data JPA Auditing]
+  標準審計框架
+  自動填充標準審計欄位
+end note
+
+note right of [自定義審計框架]
+  擴展審計框架
+  處理業務特定審計需求
+end note
+
+note right of [用戶上下文]
+  用戶信息傳遞
+  ThreadLocal + 令牌解析
+end note
+
+@enduml

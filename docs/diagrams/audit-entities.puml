@@ -1,0 +1,172 @@
+@startuml "審計類圖"
+!theme plain
+skinparam backgroundColor white
+skinparam ClassBackgroundColor #FAFAFA
+skinparam ClassBorderColor #333333
+skinparam ArrowColor #666666
+skinparam PackageBackgroundColor #FEFECE
+skinparam PackageBorderColor #999999
+
+title "審計系統類圖"
+
+' 審計接口
+package "審計接口" {
+  interface AuditableInterface {
+    +getCreatedCompany() : String
+    +setCreatedCompany(String) : void
+    +getCreatedUnit() : String
+    +setCreatedUnit(String) : void
+    +getModifiedCompany() : String
+    +setModifiedCompany(String) : void
+    +getModifiedUnit() : String
+    +setModifiedUnit(String) : void
+  }
+  
+  interface UserAuditableInterface {
+    +getCreatedName() : String
+    +setCreatedName(String) : void
+    +getModifiedName() : String
+    +setModifiedName(String) : void
+  }
+  
+  interface EnvironmentAuditableInterface {
+    +getReviewedBy() : String
+    +setReviewedBy(String) : void
+    +getReviewedTime() : LocalDateTime
+    +setReviewedTime(LocalDateTime) : void
+    +getReviewedCompany() : String
+    +setReviewedCompany(String) : void
+    +getReviewedUnit() : String
+    +setReviewedUnit(String) : void
+    +getDeployedBy() : String
+    +setDeployedBy(String) : void
+    +getDeployedTime() : LocalDateTime
+    +setDeployedTime(LocalDateTime) : void
+    +getDeployedCompany() : String
+    +setDeployedCompany(String) : void
+    +getDeployedUnit() : String
+    +setDeployedUnit(String) : void
+    ' 其他部署審計欄位
+  }
+  
+  UserAuditableInterface --|> AuditableInterface
+  EnvironmentAuditableInterface --|> AuditableInterface
+}
+
+' 審計監聽器
+package "審計監聽器" {
+  class AuditEntityListener {
+    +prePersist(Object) : void
+    +preUpdate(Object) : void
+    -processAuditFieldsWithInterface(AuditableInterface, boolean) : void
+    -processUserAuditFields(UserAuditableInterface, boolean) : void
+  }
+  
+  class EnvironmentAuditListener {
+    +performReview(EnvironmentAuditableInterface, String, String) : void
+    +performDeploy(EnvironmentAuditableInterface, String, String) : void
+  }
+  
+  class AuditingEntityListener << Spring Data JPA >> {
+    ' Spring Data JPA 提供的標準審計監聽器
+  }
+}
+
+' 審計提供者
+package "審計提供者" {
+  interface AuditorAware<T> << Spring Data JPA >> {
+    +getCurrentAuditor() : Optional<T>
+  }
+  
+  class CustomAuditorAware {
+    +getCurrentAuditor() : Optional<String>
+  }
+  
+  CustomAuditorAware ..|> AuditorAware
+}
+
+' 用戶上下文
+package "用戶上下文" {
+  class UserContext {
+    +{static} getCurrentUser() : String
+    +{static} setCurrentUser(String) : void
+    +{static} clearCurrentUser() : void
+  }
+  
+  class TokenService {
+    +getUserInfoFromToken(String) : Map<String, String>
+  }
+}
+
+' 實體類
+package "實體模型" {
+  class User {
+    ' 標準審計欄位
+    -@CreatedBy createdBy : String
+    -@CreatedDate createdTime : LocalDateTime
+    -@LastModifiedBy modifiedBy : String
+    -@LastModifiedDate modifiedTime : LocalDateTime
+    ' 擴展審計欄位
+    -createdCompany : String
+    -createdUnit : String
+    -createdName : String
+    -modifiedCompany : String
+    -modifiedUnit : String
+    -modifiedName : String
+  }
+  
+  class Api {
+    ' 與 User 類似的審計欄位
+  }
+  
+  class Environment {
+    ' 標準審計欄位
+    -@CreatedBy createdBy : String
+    -@CreatedDate createdTime : LocalDateTime
+    -@LastModifiedBy modifiedBy : String
+    -@LastModifiedDate modifiedTime : LocalDateTime
+    ' 擴展審計欄位
+    -createdCompany : String
+    -createdUnit : String
+    -modifiedCompany : String
+    -modifiedUnit : String
+    ' 環境特有審計欄位
+    -reviewedBy : String
+    -reviewedTime : LocalDateTime
+    -reviewedCompany : String
+    -reviewedUnit : String
+    -reviewerName : String
+    -reviewStatus : String
+    -reviewComment : String
+    -deployedBy : String
+    -deployedTime : LocalDateTime
+    -deployedCompany : String
+    -deployedUnit : String
+    -deployerName : String
+    -deployStatus : String
+    -deployComment : String
+    -version : String
+    -status : Integer
+  }
+  
+  User ..|> UserAuditableInterface
+  Api ..|> UserAuditableInterface
+  Environment ..|> EnvironmentAuditableInterface
+}
+
+' 關係
+AuditEntityListener ..> AuditableInterface : 處理
+AuditEntityListener ..> UserAuditableInterface : 處理
+EnvironmentAuditListener ..> EnvironmentAuditableInterface : 處理
+CustomAuditorAware ..> UserContext : 使用
+CustomAuditorAware ..> TokenService : 使用
+AuditEntityListener ..> TokenService : 使用
+User ..> AuditEntityListener : 使用
+User ..> AuditingEntityListener : 使用
+Api ..> AuditEntityListener : 使用
+Api ..> AuditingEntityListener : 使用
+Environment ..> AuditEntityListener : 使用
+Environment ..> AuditingEntityListener : 使用
+Environment ..> EnvironmentAuditListener : 使用
+
+@enduml
