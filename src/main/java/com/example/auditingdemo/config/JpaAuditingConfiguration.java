@@ -6,17 +6,20 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
+import com.example.auditingdemo.audit.CustomAuditorAware;
+
 /**
- * JPA審計功能配置類
- * 啟用Spring Data JPA的審計功能
+ * JPA審計配置類
+ * 根據 Spring Data JPA 文檔配置審計功能
+ * @see https://docs.spring.io/spring-data/jpa/reference/auditing.html
  */
 @Configuration
-@EnableJpaAuditing
+@EnableJpaAuditing(auditorAwareRef = "auditorProvider")
 public class JpaAuditingConfiguration {
     
     /**
-     * 設定審計者提供者
-     * @return AuditorAware<String> 審計者提供者
+     * 配置審計者提供者
+     * 用於獲取當前操作用戶的ID
      */
     @Bean
     @Primary

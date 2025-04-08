@@ -23,6 +23,7 @@ import com.example.auditingdemo.model.User;
 import com.example.auditingdemo.model.UserInfo;
 import com.example.auditingdemo.repository.UserInfoRepository;
 import com.example.auditingdemo.repository.UserRepository;
+import com.example.auditingdemo.service.TokenService;
 
 /**
  * 用戶控制器
@@ -37,6 +38,9 @@ public class UserController {
     
     @Autowired
     private UserInfoRepository userInfoRepository;
+    
+    @Autowired
+    private TokenService tokenService;
     
     /**
      * 獲取所有用戶
@@ -58,34 +62,36 @@ public class UserController {
     
     /**
      * 創建新用戶
-     * 使用X-User-Id頭部來模擬當前用戶
+     * 使用 Authorization header 中的 token 來獲取當前用戶信息
      */
     @PostMapping
-    public User createUser(@RequestBody User user, 
-                          @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+    public User createUser(
+            @RequestBody User user,
+            @RequestHeader(value = "Authorization", required = true) String token) {
         try {
-            // 設置當前用戶ID，這在實際應用中通常由安全框架完成
-            UserContext.setCurrentUser(userId);
+            // 設置當前用戶 token
+            UserContext.setCurrentUser(token);
             
             // 保存用戶
             return userRepository.save(user);
         } finally {
-            // 重要：清除ThreadLocal以防止內存洩漏
+            // 清除 ThreadLocal
             UserContext.clear();
         }
     }
     
     /**
      * 更新用戶
-     * 使用X-User-Id頭部來模擬當前用戶
+     * 使用 Authorization header 中的 token 來獲取當前用戶信息
      */
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, 
-                          @RequestBody User userDetails,
-                          @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+    public ResponseEntity<User> updateUser(
+            @PathVariable Long id,
+            @RequestBody User userDetails,
+            @RequestHeader(value = "Authorization", required = true) String token) {
         try {
-            // 設置當前用戶ID
-            UserContext.setCurrentUser(userId);
+            // 設置當前用戶 token
+            UserContext.setCurrentUser(token);
             
             return userRepository.findById(id)
                     .map(user -> {
@@ -117,7 +123,7 @@ public class UserController {
                     })
                     .orElse(ResponseEntity.notFound().build());
         } finally {
-            // 清除ThreadLocal
+            // 清除 ThreadLocal
             UserContext.clear();
         }
     }
