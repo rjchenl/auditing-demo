@@ -1,35 +1,42 @@
 package com.example.auditingdemo.audit;
 
+import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.stereotype.Component;
+
+import com.example.auditingdemo.service.TokenService;
 
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * 自定義審計者提供者
- * 根據 Spring Data JPA 文檔實現 AuditorAware 接口
- * @see https://docs.spring.io/spring-data/jpa/reference/auditing.html#auditing.auditor-aware
- * 
- * 注意：現在直接返回令牌作為審計者標識，不再解析出用戶ID
+ * 實現 Spring Data JPA 審計功能所需的AuditorAware接口
  */
 @Slf4j
 @Component
 public class CustomAuditorAware implements AuditorAware<String> {
+    
+    @Autowired
+    private TokenService tokenService;
 
     /**
-     * 獲取當前操作用戶的令牌
-     * 從 ThreadLocal 中獲取當前請求的令牌
+     * 獲取當前操作用戶的標識
+     * 從 UserContext 中獲取當前token，然後通過TokenService解析出用戶ID
      */
     @Override
     public Optional<String> getCurrentAuditor() {
         String token = UserContext.getCurrentUser();
         if (token != null && !token.isEmpty()) {
-            log.debug("從 ThreadLocal 中獲取到當前用戶令牌: {}", token);
-            return Optional.of(token);
+            Map<String, String> userInfo = tokenService.getUserInfoFromToken(token);
+            if (userInfo != null && userInfo.containsKey("user")) {
+                return Optional.of(userInfo.get("user"));
+            }
         }
-        log.debug("未找到當前用戶令牌，使用預設值");
+        
+        // 未找到有效的token或用戶信息，使用系統用戶
         return Optional.of("system");
     }
 } 

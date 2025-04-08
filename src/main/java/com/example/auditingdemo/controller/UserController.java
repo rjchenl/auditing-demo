@@ -60,14 +60,14 @@ public class UserController {
     
     /**
      * 創建新用戶
-     * 使用 Authorization header 中的 Bearer token 來獲取當前用戶信息
+     * 使用 Authorization header 作為 token 獲取當前用戶信息
      */
     @PostMapping
     public User createUser(
             @RequestBody User user,
             @RequestHeader(value = "Authorization", required = true) String authHeader) {
         try {
-            // 提取JWT令牌
+            // 提取token
             String token = extractToken(authHeader);
             log.info("從Authorization頭中提取到令牌: {}", token);
             
@@ -76,9 +76,9 @@ public class UserController {
             
             // 保存用戶
             User savedUser = userRepository.save(user);
-            log.info("用戶創建成功，ID={}, 審計信息: createdBy={}, createdCompany={}, createdUnit={}, createdName={}",
+            log.info("用戶創建成功，ID={}, 審計信息: createdBy={}, createdCompany={}, createdUnit={}",
                     savedUser.getId(), savedUser.getCreatedBy(), 
-                    savedUser.getCreatedCompany(), savedUser.getCreatedUnit(), savedUser.getCreatedName());
+                    savedUser.getCreatedCompany(), savedUser.getCreatedUnit());
             
             return savedUser;
         } finally {
@@ -89,7 +89,7 @@ public class UserController {
     
     /**
      * 更新用戶
-     * 使用 Authorization header 中的 Bearer token 來獲取當前用戶信息
+     * 使用 Authorization header 作為 token 獲取當前用戶信息
      */
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(
@@ -97,7 +97,7 @@ public class UserController {
             @RequestBody User userDetails,
             @RequestHeader(value = "Authorization", required = true) String authHeader) {
         try {
-            // 提取JWT令牌
+            // 提取token
             String token = extractToken(authHeader);
             log.info("從Authorization頭中提取到令牌: {}", token);
             
@@ -131,9 +131,9 @@ public class UserController {
                         
                         // 保存更新後的用戶
                         User updatedUser = userRepository.save(user);
-                        log.info("用戶更新成功，ID={}, 審計信息: modifiedBy={}, modifiedCompany={}, modifiedUnit={}, modifiedName={}",
+                        log.info("用戶更新成功，ID={}, 審計信息: modifiedBy={}, modifiedCompany={}, modifiedUnit={}",
                                 updatedUser.getId(), updatedUser.getModifiedBy(), 
-                                updatedUser.getModifiedCompany(), updatedUser.getModifiedUnit(), updatedUser.getModifiedName());
+                                updatedUser.getModifiedCompany(), updatedUser.getModifiedUnit());
                         
                         return ResponseEntity.ok(updatedUser);
                     })
@@ -178,15 +178,36 @@ public class UserController {
     }
     
     /**
-     * 模擬JWT令牌創建
-     * 根據用戶ID創建包含用戶信息的JWT令牌
+     * 提供示例CURL命令
      */
-    @GetMapping("/create-jwt/{userId}")
-    public Map<String, String> createJwtForUser(@PathVariable String userId) {
-        String jwt = tokenService.createSampleJwt(userId);
+    @GetMapping("/curl-example")
+    public Map<String, String> getCurlExample() {
         Map<String, String> result = new HashMap<>();
-        result.put("token", jwt);
-        result.put("authHeader", "Bearer " + jwt);
+        
+        String curlCmd = "curl -X POST http://localhost:8080/api/users \\\n" +
+                         "-H \"Content-Type: application/json\" \\\n" +
+                         "-H \"Authorization: kenbai\" \\\n" +
+                         "-d '{\n" +
+                         "  \"name\": \"測試用戶\", \n" +
+                         "  \"description\": \"測試描述\", \n" +
+                         "  \"email\": \"test@example.com\", \n" +
+                         "  \"username\": \"testuser\", \n" +
+                         "  \"password\": \"password123\", \n" +
+                         "  \"statusId\": \"1\"\n" +
+                         "}'";
+        
+        result.put("createUserExample", curlCmd);
+        
+        String updateCmd = "curl -X PUT http://localhost:8080/api/users/1 \\\n" +
+                          "-H \"Content-Type: application/json\" \\\n" +
+                          "-H \"Authorization: peter\" \\\n" +
+                          "-d '{\n" +
+                          "  \"name\": \"已更新的用戶\", \n" +
+                          "  \"description\": \"已更新的描述\"\n" +
+                          "}'";
+        
+        result.put("updateUserExample", updateCmd);
+        
         return result;
     }
     

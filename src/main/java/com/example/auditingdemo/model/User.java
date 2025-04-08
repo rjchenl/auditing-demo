@@ -9,7 +9,7 @@ import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import com.example.auditingdemo.listener.UserAuditListener;
+import com.example.auditingdemo.listener.AuditEntityListener;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -26,7 +26,7 @@ import lombok.Data;
  */
 @Entity
 @Table(name = "pf_user")
-@EntityListeners({AuditingEntityListener.class, UserAuditListener.class})
+@EntityListeners({AuditingEntityListener.class, AuditEntityListener.class})
 @Data
 public class User {
     
