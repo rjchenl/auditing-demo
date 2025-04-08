@@ -31,12 +31,14 @@ public class CustomAuditorAware implements AuditorAware<String> {
         String token = UserContext.getCurrentUser();
         if (token != null && !token.isEmpty()) {
             Map<String, String> userInfo = tokenService.getUserInfoFromToken(token);
-            if (userInfo != null && userInfo.containsKey("user")) {
-                return Optional.of(userInfo.get("user"));
+            if (userInfo != null && userInfo.containsKey("userId")) {
+                log.debug("獲取審計者: {}", userInfo.get("userId"));
+                return Optional.of(userInfo.get("userId"));
             }
         }
         
         // 未找到有效的token或用戶信息，使用系統用戶
+        log.debug("使用默認審計者: system");
         return Optional.of("system");
     }
 } 

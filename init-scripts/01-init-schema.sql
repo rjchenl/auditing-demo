@@ -94,4 +94,67 @@ COMMENT ON COLUMN pf_api.modified_unit IS '修改人員單位';
 COMMENT ON COLUMN pf_api.modified_name IS '修改人員姓名';
 COMMENT ON COLUMN pf_api.modified_time IS '修改時間';
 
+-- 創建環境配置表
+CREATE TABLE pf_environment
+(
+    id               bigserial
+        constraint pf_environment_pk
+            primary key,
+    name             varchar(100)                          not null
+        constraint pf_environment_un
+            unique,
+    description      varchar(255),
+    type             varchar(50)                           not null,
+    config_value     text,
+    status           integer       default 0               not null,
+    version          varchar(20)   default '1.0'           not null,
+    -- 標準審計欄位 (Spring Data JPA Auditing)
+    created_by       varchar(100)                          not null,
+    created_time     timestamp     default now()           not null,
+    modified_by      varchar(100)                          not null,
+    modified_time    timestamp     default now()           not null,
+    -- 擴展審計欄位
+    created_company  varchar(100),
+    created_unit     varchar(100),
+    modified_company varchar(100),
+    modified_unit    varchar(100),
+    -- 環境配置特有審計欄位
+    reviewed_by      varchar(100),
+    reviewed_time    timestamp,
+    reviewed_company varchar(100),
+    reviewed_unit    varchar(100),
+    deployed_by      varchar(100),
+    deployed_time    timestamp,
+    deployed_company varchar(100),
+    deployed_unit    varchar(100)
+);
+
+-- 添加表和欄位註釋
+COMMENT ON TABLE pf_environment IS '環境配置資料表';
+COMMENT ON COLUMN pf_environment.id IS '環境編號';
+COMMENT ON COLUMN pf_environment.name IS '環境名稱';
+COMMENT ON COLUMN pf_environment.description IS '環境描述';
+COMMENT ON COLUMN pf_environment.type IS '環境類型';
+COMMENT ON COLUMN pf_environment.config_value IS '配置值';
+COMMENT ON COLUMN pf_environment.status IS '狀態 (0:草稿, 1:審核中, 2:已審核, 3:已部署)';
+COMMENT ON COLUMN pf_environment.version IS '版本號';
+-- 審計欄位註釋
+COMMENT ON COLUMN pf_environment.created_by IS '建立人員ID';
+COMMENT ON COLUMN pf_environment.created_time IS '建立時間';
+COMMENT ON COLUMN pf_environment.modified_by IS '修改人員ID';
+COMMENT ON COLUMN pf_environment.modified_time IS '修改時間';
+COMMENT ON COLUMN pf_environment.created_company IS '建立人員公司';
+COMMENT ON COLUMN pf_environment.created_unit IS '建立人員單位';
+COMMENT ON COLUMN pf_environment.modified_company IS '修改人員公司';
+COMMENT ON COLUMN pf_environment.modified_unit IS '修改人員單位';
+-- 特有審計欄位註釋
+COMMENT ON COLUMN pf_environment.reviewed_by IS '審核人員ID';
+COMMENT ON COLUMN pf_environment.reviewed_time IS '審核時間';
+COMMENT ON COLUMN pf_environment.reviewed_company IS '審核人員公司';
+COMMENT ON COLUMN pf_environment.reviewed_unit IS '審核人員單位';
+COMMENT ON COLUMN pf_environment.deployed_by IS '部署人員ID';
+COMMENT ON COLUMN pf_environment.deployed_time IS '部署時間';
+COMMENT ON COLUMN pf_environment.deployed_company IS '部署人員公司';
+COMMENT ON COLUMN pf_environment.deployed_unit IS '部署人員單位';
+
 

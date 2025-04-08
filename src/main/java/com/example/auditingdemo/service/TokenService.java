@@ -16,38 +16,51 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class TokenService {
     
+    // 單例實例
+    private static TokenService instance;
+    
     // 模擬token到用戶信息的映射
     private static final Map<String, Map<String, String>> TOKEN_USER_MAP = new HashMap<>();
     
     static {
         // 初始化模擬數據
         Map<String, String> kenbaiInfo = new HashMap<>();
-        kenbaiInfo.put("user", "kenbai");
+        kenbaiInfo.put("userId", "kenbai");
         kenbaiInfo.put("name", "肯白");
         kenbaiInfo.put("company", "拓連科技");
         kenbaiInfo.put("unit", "行銷部");
         TOKEN_USER_MAP.put("kenbai", kenbaiInfo);
         
         Map<String, String> peterInfo = new HashMap<>();
-        peterInfo.put("user", "peter");
+        peterInfo.put("userId", "peter");
         peterInfo.put("name", "彼得");
         peterInfo.put("company", "拓連科技");
         peterInfo.put("unit", "研發部");
         TOKEN_USER_MAP.put("peter", peterInfo);
         
         Map<String, String> shawnInfo = new HashMap<>();
-        shawnInfo.put("user", "shawn");
+        shawnInfo.put("userId", "shawn");
         shawnInfo.put("name", "肖恩");
         shawnInfo.put("company", "拓連科技");
         shawnInfo.put("unit", "產品部");
         TOKEN_USER_MAP.put("shawn", shawnInfo);
         
         Map<String, String> systemInfo = new HashMap<>();
-        systemInfo.put("user", "system");
+        systemInfo.put("userId", "system");
         systemInfo.put("name", "系統");
         systemInfo.put("company", "系統");
         systemInfo.put("unit", "系統");
         TOKEN_USER_MAP.put("system", systemInfo);
+    }
+    
+    /**
+     * 獲取TokenService的單例實例
+     */
+    public static synchronized TokenService getInstance() {
+        if (instance == null) {
+            instance = new TokenService();
+        }
+        return instance;
     }
     
     /**

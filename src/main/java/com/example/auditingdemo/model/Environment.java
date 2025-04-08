@@ -10,6 +10,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import com.example.auditingdemo.audit.Auditable;
 import com.example.auditingdemo.listener.AuditEntityListener;
+import com.example.auditingdemo.listener.EnvironmentAuditListener;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -24,41 +26,33 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 用戶實體類
- * 演示審計功能
+ * 環境配置實體類
+ * 用於測試不同的擴充審計欄位組合
  */
 @Entity
-@Table(name = "pf_user")
-@EntityListeners({AuditingEntityListener.class, AuditEntityListener.class})
+@Table(name = "pf_environment")
+@EntityListeners({AuditingEntityListener.class, EnvironmentAuditListener.class, AuditEntityListener.class})
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Auditable
-public class User {
+public class Environment {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
+    @Column(unique = true, nullable = false)
     private String name;
-    
-    private String email;
     
     private String description;
     
-    @Column(unique = true)
-    private String username;
+    @Column(nullable = false)
+    private String type;
     
-    private String password;
-    
-    private String cellphone;
-    
-    private String companyId;
-    
-    private String statusId;
-    
-    private String defaultLanguage;
+    @Column(name = "config_value")
+    private String configValue;
     
     // 標準審計欄位 - 由Spring Data JPA自動處理
     @CreatedBy
@@ -66,6 +60,7 @@ public class User {
     private String createdBy;
     
     @CreatedDate
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Column(name = "created_time", nullable = false, updatable = false)
     private LocalDateTime createdTime;
     
@@ -74,18 +69,38 @@ public class User {
     private String modifiedBy;
     
     @LastModifiedDate
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Column(name = "modified_time", nullable = false)
     private LocalDateTime modifiedTime;
     
-    // 擴展審計欄位 - 由自定義的AuditEntityListener處理
-    @Column(name = "created_company")
+    // 環境配置特定的擴充審計欄位
+    @Column(name = "reviewed_by")
+    private String reviewedBy;
+    
+    @Column(name = "reviewed_time")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime reviewedTime;
+    
+    @Column(name = "deployed_by")
+    private String deployedBy;
+    
+    @Column(name = "deployed_time")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime deployedTime;
+    
+    @Column(name = "version")
+    private String version;
+    
+    @Column(nullable = false)
+    private Integer status; // 0:草稿, 1:審核中, 2:已審核, 3:已部署
+    
+    // =====擴展審計欄位=====
+    
+    @Column(name = "created_company", updatable = false)
     private String createdCompany;
     
-    @Column(name = "created_unit")
+    @Column(name = "created_unit", updatable = false)
     private String createdUnit;
-    
-    @Column(name = "created_name")
-    private String createdName;
     
     @Column(name = "modified_company")
     private String modifiedCompany;
@@ -93,6 +108,17 @@ public class User {
     @Column(name = "modified_unit")
     private String modifiedUnit;
     
-    @Column(name = "modified_name")
-    private String modifiedName;
+    // =====環境特有審計欄位=====
+    
+    @Column(name = "reviewed_company")
+    private String reviewedCompany;
+    
+    @Column(name = "reviewed_unit")
+    private String reviewedUnit;
+    
+    @Column(name = "deployed_company")
+    private String deployedCompany;
+    
+    @Column(name = "deployed_unit")
+    private String deployedUnit;
 } 

@@ -86,13 +86,23 @@ public class AuditEntityListener {
                     setFieldValue(entity, auditableAnnotation.createdCompanyField(), userInfo.get("company"));
                     setFieldValue(entity, auditableAnnotation.createdUnitField(), userInfo.get("unit"));
                     setFieldValue(entity, auditableAnnotation.createdNameField(), userInfo.get("name"));
+                    
+                    // 在創建時也設置初始的修改者資訊，使其與創建者一致
+                    setFieldValue(entity, auditableAnnotation.modifiedCompanyField(), userInfo.get("company"));
+                    setFieldValue(entity, auditableAnnotation.modifiedUnitField(), userInfo.get("unit"));
+                    setFieldValue(entity, auditableAnnotation.modifiedNameField(), userInfo.get("name"));
                 } else {
                     setFieldValue(entity, auditableAnnotation.createdCompanyField(), "系統");
                     setFieldValue(entity, auditableAnnotation.createdUnitField(), "系統");
                     setFieldValue(entity, auditableAnnotation.createdNameField(), "系統");
+                    
+                    // 在創建時也設置初始的修改者資訊，使其與創建者一致
+                    setFieldValue(entity, auditableAnnotation.modifiedCompanyField(), "系統");
+                    setFieldValue(entity, auditableAnnotation.modifiedUnitField(), "系統");
+                    setFieldValue(entity, auditableAnnotation.modifiedNameField(), "系統");
                 }
             } else {
-                // 設置修改相關審計欄位
+                // 設置修改相關審計欄位 - 僅在更新操作時設置
                 if (userInfo != null) {
                     setFieldValue(entity, auditableAnnotation.modifiedCompanyField(), userInfo.get("company"));
                     setFieldValue(entity, auditableAnnotation.modifiedUnitField(), userInfo.get("unit"));

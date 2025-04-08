@@ -54,7 +54,7 @@ public class UserTokenInterceptor implements HandlerInterceptor {
             // 從令牌中獲取用戶信息
             Map<String, String> userInfo = tokenService.getUserInfoFromToken(token);
             if (userInfo != null) {
-                String userId = userInfo.get("user");
+                String userId = userInfo.get("userId");
                 String userName = userInfo.get("name");
                 log.debug("令牌有效，用戶資訊: ID={}, 姓名={}", userId, userName);
             } else {
