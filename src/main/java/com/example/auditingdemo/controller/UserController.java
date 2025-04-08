@@ -23,10 +23,13 @@ import com.example.auditingdemo.model.User;
 import com.example.auditingdemo.repository.UserRepository;
 import com.example.auditingdemo.service.TokenService;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * 用戶控制器
  * 處理用戶CRUD操作，演示審計功能
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -57,18 +60,27 @@ public class UserController {
     
     /**
      * 創建新用戶
-     * 使用 Authorization header 中的 token 來獲取當前用戶信息
+     * 使用 Authorization header 中的 Bearer token 來獲取當前用戶信息
      */
     @PostMapping
     public User createUser(
             @RequestBody User user,
-            @RequestHeader(value = "Authorization", required = true) String token) {
+            @RequestHeader(value = "Authorization", required = true) String authHeader) {
         try {
+            // 提取JWT令牌
+            String token = extractToken(authHeader);
+            log.info("從Authorization頭中提取到令牌: {}", token);
+            
             // 設置當前用戶 token
             UserContext.setCurrentUser(token);
             
             // 保存用戶
-            return userRepository.save(user);
+            User savedUser = userRepository.save(user);
+            log.info("用戶創建成功，ID={}, 審計信息: createdBy={}, createdCompany={}, createdUnit={}, createdName={}",
+                    savedUser.getId(), savedUser.getCreatedBy(), 
+                    savedUser.getCreatedCompany(), savedUser.getCreatedUnit(), savedUser.getCreatedName());
+            
+            return savedUser;
         } finally {
             // 清除 ThreadLocal
             UserContext.clear();
@@ -77,14 +89,18 @@ public class UserController {
     
     /**
      * 更新用戶
-     * 使用 Authorization header 中的 token 來獲取當前用戶信息
+     * 使用 Authorization header 中的 Bearer token 來獲取當前用戶信息
      */
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(
             @PathVariable Long id,
             @RequestBody User userDetails,
-            @RequestHeader(value = "Authorization", required = true) String token) {
+            @RequestHeader(value = "Authorization", required = true) String authHeader) {
         try {
+            // 提取JWT令牌
+            String token = extractToken(authHeader);
+            log.info("從Authorization頭中提取到令牌: {}", token);
+            
             // 設置當前用戶 token
             UserContext.setCurrentUser(token);
             
@@ -114,7 +130,12 @@ public class UserController {
                         }
                         
                         // 保存更新後的用戶
-                        return ResponseEntity.ok(userRepository.save(user));
+                        User updatedUser = userRepository.save(user);
+                        log.info("用戶更新成功，ID={}, 審計信息: modifiedBy={}, modifiedCompany={}, modifiedUnit={}, modifiedName={}",
+                                updatedUser.getId(), updatedUser.getModifiedBy(), 
+                                updatedUser.getModifiedCompany(), updatedUser.getModifiedUnit(), updatedUser.getModifiedName());
+                        
+                        return ResponseEntity.ok(updatedUser);
                     })
                     .orElse(ResponseEntity.notFound().build());
         } finally {
@@ -154,5 +175,28 @@ public class UserController {
                     return auditInfo;
                 })
                 .collect(Collectors.toList());
+    }
+    
+    /**
+     * 模擬JWT令牌創建
+     * 根據用戶ID創建包含用戶信息的JWT令牌
+     */
+    @GetMapping("/create-jwt/{userId}")
+    public Map<String, String> createJwtForUser(@PathVariable String userId) {
+        String jwt = tokenService.createSampleJwt(userId);
+        Map<String, String> result = new HashMap<>();
+        result.put("token", jwt);
+        result.put("authHeader", "Bearer " + jwt);
+        return result;
+    }
+    
+    /**
+     * 從 Authorization 頭中提取令牌
+     */
+    private String extractToken(String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return authHeader;
     }
 } 
