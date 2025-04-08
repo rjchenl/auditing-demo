@@ -9,7 +9,7 @@ import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import com.example.auditingdemo.audit.UserAuditListener;
+import com.example.auditingdemo.listener.UserAuditListener;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -31,9 +31,14 @@ import lombok.Data;
 public class User {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "user_uid")
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(name = "name")
+    private String name;
+    
+    @Column(name = "email")
+    private String email;
     
     @Column(name = "description", nullable = false)
     private String description;
@@ -43,9 +48,6 @@ public class User {
     
     @Column(name = "password", nullable = false)
     private String password;
-    
-    @Column(name = "email")
-    private String email;
     
     @Column(name = "cellphone")
     private String cellphone;
@@ -62,19 +64,19 @@ public class User {
     // === Spring Data JPA審計欄位 ===
     
     @CreatedBy
-    @Column(name = "created_by", nullable = false, updatable = false)
+    @Column(name = "created_by")
     private String createdBy;
     
     @CreatedDate
-    @Column(name = "created_time", nullable = false, updatable = false)
+    @Column(name = "created_time")
     private Instant createdTime;
     
     @LastModifiedBy
-    @Column(name = "modified_by", nullable = false)
+    @Column(name = "modified_by")
     private String modifiedBy;
     
     @LastModifiedDate
-    @Column(name = "modified_time", nullable = false)
+    @Column(name = "modified_time")
     private Instant modifiedTime;
     
     // === 擴展審計欄位 ===

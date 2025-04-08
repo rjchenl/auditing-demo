@@ -9,7 +9,7 @@ import com.example.auditingdemo.interceptor.UserTokenInterceptor;
 
 /**
  * Web MVC配置類
- * 配置拦截器和其他Web相關設置
+ * 配置攔截器和其他Web相關設置
  */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
@@ -18,12 +18,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
     private UserTokenInterceptor userTokenInterceptor;
     
     /**
-     * 添加拦截器
+     * 添加攔截器
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 註冊用戶Token拦截器，應用於所有請求
+        // 註冊使用者Token攔截器，應用於所有請求
         registry.addInterceptor(userTokenInterceptor)
-                .addPathPatterns("/**"); // 拦截所有請求
+                .addPathPatterns("/**"); // 攔截所有請求
     }
 } 

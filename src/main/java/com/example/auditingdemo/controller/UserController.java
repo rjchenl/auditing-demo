@@ -5,7 +5,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +50,7 @@ public class UserController {
      * 根據ID獲取用戶
      */
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable UUID id) {
+    public ResponseEntity<User> getUserById(@PathVariable Long id) {
         return userRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -81,7 +80,7 @@ public class UserController {
      * 使用X-User-Id頭部來模擬當前用戶
      */
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable UUID id, 
+    public ResponseEntity<User> updateUser(@PathVariable Long id, 
                           @RequestBody User userDetails,
                           @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
         try {
@@ -91,8 +90,14 @@ public class UserController {
             return userRepository.findById(id)
                     .map(user -> {
                         // 更新用戶基本信息
+                        if (userDetails.getName() != null) {
+                            user.setName(userDetails.getName());
+                        }
                         if (userDetails.getEmail() != null) {
                             user.setEmail(userDetails.getEmail());
+                        }
+                        if (userDetails.getDescription() != null) {
+                            user.setDescription(userDetails.getDescription());
                         }
                         if (userDetails.getCellphone() != null) {
                             user.setCellphone(userDetails.getCellphone());
@@ -102,9 +107,6 @@ public class UserController {
                         }
                         if (userDetails.getStatusId() != null) {
                             user.setStatusId(userDetails.getStatusId());
-                        }
-                        if (userDetails.getDescription() != null) {
-                            user.setDescription(userDetails.getDescription());
                         }
                         if (userDetails.getDefaultLanguage() != null) {
                             user.setDefaultLanguage(userDetails.getDefaultLanguage());

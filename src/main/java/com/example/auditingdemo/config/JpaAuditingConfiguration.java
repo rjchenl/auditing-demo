@@ -6,8 +6,6 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
-import com.example.auditingdemo.audit.CustomAuditorAware;
-
 /**
  * JPA審計功能配置類
  * 啟用Spring Data JPA的審計功能

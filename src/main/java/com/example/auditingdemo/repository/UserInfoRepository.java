@@ -6,8 +6,7 @@ import org.springframework.stereotype.Repository;
 import com.example.auditingdemo.model.UserInfo;
 
 /**
- * 用戶信息仓库接口
- * 用於訪問用戶詳細信息表
+ * 用戶資訊儲存庫
  */
 @Repository
 public interface UserInfoRepository extends JpaRepository<UserInfo, String> {
