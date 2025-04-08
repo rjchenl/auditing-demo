@@ -1,5 +1,6 @@
 package com.example.auditingdemo.controller;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -32,6 +33,10 @@ import com.example.auditingdemo.repository.UserRepository;
 @RequestMapping("/api/audit-demo")
 public class AuditDemoController {
     
+    private static final ZoneId TAIPEI_ZONE = ZoneId.of("Asia/Taipei");
+    private static final DateTimeFormatter DATE_FORMATTER = 
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    
     @Autowired
     private UserRepository userRepository;
     
@@ -46,19 +51,16 @@ public class AuditDemoController {
         List<User> users = userRepository.findAll();
         List<Map<String, Object>> result = new ArrayList<>();
         
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        ZoneId zoneId = ZoneId.of("Asia/Taipei");
-        
         for (User user : users) {
             Map<String, Object> entry = new HashMap<>();
             
-            // 基本用戶信息
+            // 基本用戶資訊
             entry.put("userId", user.getId());
             entry.put("username", user.getUsername());
             
-            // 創建者信息
+            // 創建者資訊
             entry.put("createdBy", user.getCreatedBy());
-            entry.put("createdTime", user.getCreatedTime().atZone(zoneId).format(formatter));
+            entry.put("createdTime", formatInstant(user.getCreatedTime()));
             
             // 創建者詳細信息
             UserInfo creatorInfo = userInfoRepository.findById(user.getCreatedBy()).orElse(null);
@@ -71,9 +73,9 @@ public class AuditDemoController {
                 entry.put("creatorDetails", creatorDetails);
             }
             
-            // 修改者信息
+            // 修改者資訊
             entry.put("modifiedBy", user.getModifiedBy());
-            entry.put("modifiedTime", user.getModifiedTime().atZone(zoneId).format(formatter));
+            entry.put("modifiedTime", formatInstant(user.getModifiedTime()));
             
             // 修改者詳細信息
             UserInfo modifierInfo = userInfoRepository.findById(user.getModifiedBy()).orElse(null);
@@ -112,17 +114,15 @@ public class AuditDemoController {
             
             // 4. 組裝結果，展示審計過程
             Map<String, Object> result = new HashMap<>();
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            ZoneId zoneId = ZoneId.of("Asia/Taipei");
             
             // 基本信息
             result.put("userId", savedUser.getId());
             result.put("username", savedUser.getUsername());
             
-            // 審計信息
+            // 審計資訊
             Map<String, String> auditInfo = new HashMap<>();
             auditInfo.put("createdBy", savedUser.getCreatedBy());
-            auditInfo.put("createdTime", savedUser.getCreatedTime().atZone(zoneId).format(formatter));
+            auditInfo.put("createdTime", formatInstant(savedUser.getCreatedTime()));
             auditInfo.put("createdCompany", savedUser.getCreatedCompany());
             auditInfo.put("createdUnit", savedUser.getCreatedUnit());
             auditInfo.put("createdName", savedUser.getCreatedName());
@@ -171,5 +171,15 @@ public class AuditDemoController {
         return userInfoRepository.findById(userId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+    
+    /**
+     * 將 Instant 格式化為台北時區的時間字串
+     */
+    private String formatInstant(Instant instant) {
+        if (instant == null) {
+            return null;
+        }
+        return instant.atZone(TAIPEI_ZONE).format(DATE_FORMATTER);
     }
 } 
