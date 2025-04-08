@@ -14,13 +14,12 @@ import org.springframework.stereotype.Component;
 public class CustomAuditorAware implements AuditorAware<String> {
 
     /**
-     * 獲取當前操作用戶ID
-     * 在實際應用中，應從SecurityContextHolder或JWT Token中提取用戶ID
+     * 取得當前操作用戶ID
+     * SecurityContextHolder或JWT Token中提取用戶ID
      */
     @Override
     public Optional<String> getCurrentAuditor() {
-        // 在真實環境中，這裡應該從安全上下文或ThreadLocal獲取當前登錄用戶
-        // 為了演示目的，我們先使用ThreadLocal來模擬
+        // 獲取當前用戶ID
         String currentUser = UserContext.getCurrentUser();
         return Optional.ofNullable(currentUser).or(() -> Optional.of("system"));
     }
