@@ -1,5 +1,7 @@
 package com.example.auditingdemo.listener;
 
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 import org.springframework.context.ApplicationContext;
@@ -7,7 +9,6 @@ import org.springframework.stereotype.Component;
 
 import com.example.auditingdemo.audit.UserContext;
 import com.example.auditingdemo.model.User;
-import com.example.auditingdemo.model.UserInfo;
 import com.example.auditingdemo.service.TokenService;
 
 import jakarta.persistence.PostPersist;
@@ -57,18 +58,18 @@ public class UserAuditListener {
         if (token != null && !token.isEmpty()) {
             try {
                 TokenService tokenService = applicationContext.getBean(TokenService.class);
-                UserInfo userInfo = tokenService.getUserInfoFromToken(token);
+                Map<String, String> userInfo = tokenService.getUserInfoFromToken(token);
                 log.info("從 token [{}] 獲取到用戶 [{}] 的信息：公司={}, 部門={}, 姓名={}",
-                        token, userInfo.getUserId(), userInfo.getCompany(), userInfo.getUnit(), userInfo.getName());
+                        token, userInfo.get("userId"), userInfo.get("company"), userInfo.get("unit"), userInfo.get("name"));
                 
                 if (isCreate) {
-                    user.setCreatedCompany(userInfo.getCompany());
-                    user.setCreatedUnit(userInfo.getUnit());
-                    user.setCreatedName(userInfo.getName());
+                    user.setCreatedCompany(userInfo.get("company"));
+                    user.setCreatedUnit(userInfo.get("unit"));
+                    user.setCreatedName(userInfo.get("name"));
                 }
-                user.setModifiedCompany(userInfo.getCompany());
-                user.setModifiedUnit(userInfo.getUnit());
-                user.setModifiedName(userInfo.getName());
+                user.setModifiedCompany(userInfo.get("company"));
+                user.setModifiedUnit(userInfo.get("unit"));
+                user.setModifiedName(userInfo.get("name"));
             } catch (Exception e) {
                 log.error("處理用戶審計信息時發生錯誤: {}", e.getMessage(), e);
                 setDefaultAuditInfo(user, isCreate);

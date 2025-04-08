@@ -21,9 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.auditingdemo.audit.UserContext;
 import com.example.auditingdemo.model.User;
-import com.example.auditingdemo.model.UserInfo;
-import com.example.auditingdemo.repository.UserInfoRepository;
 import com.example.auditingdemo.repository.UserRepository;
+import com.example.auditingdemo.service.TokenService;
 
 /**
  * 審計Demo控制器
@@ -41,7 +40,7 @@ public class AuditDemoController {
     private UserRepository userRepository;
     
     @Autowired
-    private UserInfoRepository userInfoRepository;
+    private TokenService tokenService;
     
     /**
      * 獲取所有審計信息，包含關聯的用戶信息
@@ -63,13 +62,13 @@ public class AuditDemoController {
             entry.put("createdTime", formatInstant(user.getCreatedTime()));
             
             // 創建者詳細信息
-            UserInfo creatorInfo = userInfoRepository.findById(user.getCreatedBy()).orElse(null);
+            Map<String, String> creatorInfo = tokenService.getUserInfoFromToken(user.getCreatedBy());
             if (creatorInfo != null) {
                 Map<String, String> creatorDetails = new HashMap<>();
-                creatorDetails.put("userId", creatorInfo.getUserId());
-                creatorDetails.put("name", creatorInfo.getName());
-                creatorDetails.put("company", creatorInfo.getCompany());
-                creatorDetails.put("unit", creatorInfo.getUnit());
+                creatorDetails.put("userId", creatorInfo.get("userId"));
+                creatorDetails.put("name", creatorInfo.get("name"));
+                creatorDetails.put("company", creatorInfo.get("company"));
+                creatorDetails.put("unit", creatorInfo.get("unit"));
                 entry.put("creatorDetails", creatorDetails);
             }
             
@@ -78,13 +77,13 @@ public class AuditDemoController {
             entry.put("modifiedTime", formatInstant(user.getModifiedTime()));
             
             // 修改者詳細信息
-            UserInfo modifierInfo = userInfoRepository.findById(user.getModifiedBy()).orElse(null);
+            Map<String, String> modifierInfo = tokenService.getUserInfoFromToken(user.getModifiedBy());
             if (modifierInfo != null) {
                 Map<String, String> modifierDetails = new HashMap<>();
-                modifierDetails.put("userId", modifierInfo.getUserId());
-                modifierDetails.put("name", modifierInfo.getName());
-                modifierDetails.put("company", modifierInfo.getCompany());
-                modifierDetails.put("unit", modifierInfo.getUnit());
+                modifierDetails.put("userId", modifierInfo.get("userId"));
+                modifierDetails.put("name", modifierInfo.get("name"));
+                modifierDetails.put("company", modifierInfo.get("company"));
+                modifierDetails.put("unit", modifierInfo.get("unit"));
                 entry.put("modifierDetails", modifierDetails);
             }
             
@@ -100,14 +99,14 @@ public class AuditDemoController {
     @PostMapping("/create-with-audit")
     public Map<String, Object> createWithAudit(
             @RequestBody User user,
-            @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+            @RequestHeader(value = "Authorization", defaultValue = "system") String token) {
         
         try {
             // 1. 設置當前用戶
-            UserContext.setCurrentUser(userId);
+            UserContext.setCurrentUser(token);
             
             // 2. 查詢操作者信息
-            UserInfo operatorInfo = userInfoRepository.findById(userId).orElse(null);
+            Map<String, String> operatorInfo = tokenService.getUserInfoFromToken(token);
             
             // 3. 保存用戶 (這將觸發審計功能)
             User savedUser = userRepository.save(user);
@@ -131,20 +130,20 @@ public class AuditDemoController {
             // 操作者詳細信息
             if (operatorInfo != null) {
                 Map<String, String> operatorDetails = new HashMap<>();
-                operatorDetails.put("userId", operatorInfo.getUserId());
-                operatorDetails.put("name", operatorInfo.getName());
-                operatorDetails.put("company", operatorInfo.getCompany());
-                operatorDetails.put("unit", operatorInfo.getUnit());
-                result.put("operatorFromUserInfo", operatorDetails);
+                operatorDetails.put("userId", operatorInfo.get("userId"));
+                operatorDetails.put("name", operatorInfo.get("name"));
+                operatorDetails.put("company", operatorInfo.get("company"));
+                operatorDetails.put("unit", operatorInfo.get("unit"));
+                result.put("operatorFromToken", operatorDetails);
             }
             
             // 審計流程說明
             List<String> auditProcess = Arrays.asList(
-                "1. 從HTTP頭獲取操作者ID: " + userId,
+                "1. 從HTTP頭獲取操作者Token: " + token,
                 "2. 保存到UserContext的ThreadLocal中",
-                "3. SpringData JPA通過CustomAuditorAware獲取操作者ID並設置created_by",
-                "4. UserAuditListener從User.createdBy獲取ID (" + savedUser.getCreatedBy() + ")",
-                "5. 使用這個ID從UserInfo表查詢操作者詳細資料",
+                "3. SpringData JPA通過CustomAuditorAware獲取操作者Token並設置created_by",
+                "4. UserAuditListener從User.createdBy獲取Token (" + savedUser.getCreatedBy() + ")",
+                "5. 使用這個Token從TokenService獲取操作者詳細資料",
                 "6. 填充擴展審計欄位: created_company, created_unit, created_name"
             );
             result.put("auditProcess", auditProcess);
@@ -156,21 +155,22 @@ public class AuditDemoController {
     }
     
     /**
-     * 獲取所有用戶信息表數據
+     * 獲取所有可用的Token
      */
-    @GetMapping("/user-info")
-    public List<UserInfo> getAllUserInfo() {
-        return userInfoRepository.findAll();
+    @GetMapping("/tokens")
+    public Map<String, Map<String, String>> getAllTokens() {
+        return tokenService.getAllMockTokens();
     }
     
     /**
-     * 根據用戶ID獲取用戶信息
+     * 根據Token獲取用戶信息
      */
-    @GetMapping("/user-info/{userId}")
-    public ResponseEntity<UserInfo> getUserInfoById(@PathVariable String userId) {
-        return userInfoRepository.findById(userId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @GetMapping("/token-info/{token}")
+    public ResponseEntity<Map<String, String>> getUserInfoByToken(@PathVariable String token) {
+        Map<String, String> userInfo = tokenService.getUserInfoFromToken(token);
+        return userInfo != null 
+            ? ResponseEntity.ok(userInfo)
+            : ResponseEntity.notFound().build();
     }
     
     /**

@@ -1,33 +1,34 @@
 package com.example.auditingdemo.util;
 
-import com.example.auditingdemo.model.UserInfo;
-
 /**
  * 用戶上下文
- * 用於存儲當前用戶的資訊
+ * 用於存儲當前用戶的令牌信息
  */
 public class UserContext {
-    private static final ThreadLocal<String> currentUserId = new ThreadLocal<>();
-    private static final ThreadLocal<UserInfo> currentUserInfo = new ThreadLocal<>();
+    private static final ThreadLocal<String> currentUser = new ThreadLocal<>();
 
-    public static void setCurrentUserId(String userId) {
-        currentUserId.set(userId);
+    /**
+     * 設置當前用戶令牌
+     * 
+     * @param token 用戶令牌
+     */
+    public static void setCurrentUser(String token) {
+        currentUser.set(token);
     }
 
-    public static String getCurrentUserId() {
-        return currentUserId.get();
+    /**
+     * 獲取當前用戶令牌
+     * 
+     * @return 當前用戶令牌
+     */
+    public static String getCurrentUser() {
+        return currentUser.get();
     }
 
-    public static void setCurrentUserInfo(UserInfo userInfo) {
-        currentUserInfo.set(userInfo);
-    }
-
-    public static UserInfo getCurrentUserInfo() {
-        return currentUserInfo.get();
-    }
-
+    /**
+     * 清理ThreadLocal，防止內存泄漏
+     */
     public static void clear() {
-        currentUserId.remove();
-        currentUserInfo.remove();
+        currentUser.remove();
     }
 } 

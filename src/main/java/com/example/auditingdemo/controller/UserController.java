@@ -20,8 +20,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.auditingdemo.audit.UserContext;
 import com.example.auditingdemo.model.User;
-import com.example.auditingdemo.model.UserInfo;
-import com.example.auditingdemo.repository.UserInfoRepository;
 import com.example.auditingdemo.repository.UserRepository;
 import com.example.auditingdemo.service.TokenService;
 
@@ -35,9 +33,6 @@ public class UserController {
     
     @Autowired
     private UserRepository userRepository;
-    
-    @Autowired
-    private UserInfoRepository userInfoRepository;
     
     @Autowired
     private TokenService tokenService;
