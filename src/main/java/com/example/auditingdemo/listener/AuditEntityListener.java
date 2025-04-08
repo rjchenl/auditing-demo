@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 通用審計監聽器
- * 使用介面方式處理審計欄位
+ * 只處理擴展審計欄位，標準審計欄位(創建者/修改者和時間)由Spring Data JPA的註解處理
  * 支援層次化的審計介面結構
  */
 @Slf4j
@@ -31,6 +31,7 @@ public class AuditEntityListener {
     
     /**
      * 在實體持久化之前填充創建相關的擴展審計欄位
+     * 注意：標準審計欄位（創建者、創建時間）由 Spring Data JPA 的 @CreatedBy 和 @CreatedDate 註解處理
      */
     @PrePersist
     public void prePersist(Object entity) {
@@ -47,6 +48,7 @@ public class AuditEntityListener {
     
     /**
      * 在實體更新之前填充修改相關的擴展審計欄位
+     * 注意：標準審計欄位（修改者、修改時間）由 Spring Data JPA 的 @LastModifiedBy 和 @LastModifiedDate 註解處理
      */
     @PreUpdate
     public void preUpdate(Object entity) {
@@ -62,7 +64,7 @@ public class AuditEntityListener {
     }
     
     /**
-     * 使用介面方式處理審計欄位
+     * 使用介面方式處理擴展審計欄位
      * 
      * @param entity 實現審計介面的實體
      * @param isCreate 是否為創建操作

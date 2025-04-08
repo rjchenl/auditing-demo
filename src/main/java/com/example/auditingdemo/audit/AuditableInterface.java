@@ -5,21 +5,11 @@ import java.time.LocalDateTime;
 /**
  * 審計介面
  * 用於實現擴展審計欄位的實體類
+ * 標準審計欄位由 Spring Data JPA 的 @CreatedBy, @CreatedDate, @LastModifiedBy, @LastModifiedDate 註解處理
  */
 public interface AuditableInterface {
     
-    // 標準審計欄位 (由Spring Data JPA Auditing處理)
-    String getCreatedBy();
-    void setCreatedBy(String createdBy);
-    
-    LocalDateTime getCreatedTime();
-    void setCreatedTime(LocalDateTime createdTime);
-    
-    String getModifiedBy();
-    void setModifiedBy(String modifiedBy);
-    
-    LocalDateTime getModifiedTime();
-    void setModifiedTime(LocalDateTime modifiedTime);
+    // 移除標準審計欄位，將由 Spring Data JPA 的註解處理
     
     // 擴展審計欄位
     String getCreatedCompany();

@@ -10,20 +10,26 @@
 
 ## 最近更新
 
-### 介面式審計架構
+### 混合式審計架構
 
-我們最近對審計功能進行了重大升級，從原來的註解式審計方式轉向基於介面的層次化審計結構：
+我們最近對審計功能進行了重大升級，採用混合式的審計架構：
 
-1. **審計介面架構**：
-   - `AuditableInterface`：基礎審計介面，包含所有實體共用的標準審計欄位
-   - `UserAuditableInterface`：擴展自基礎介面，添加用戶相關審計欄位
-   - `EnvironmentAuditableInterface`：擴展自基礎介面，添加環境特有的審計欄位
+1. **標準審計欄位**：使用 Spring Data JPA 的註解進行實現
+   - `@CreatedBy`：自動填充創建者ID
+   - `@CreatedDate`：自動填充創建時間
+   - `@LastModifiedBy`：自動填充修改者ID
+   - `@LastModifiedDate`：自動填充修改時間
 
-2. **專用監聽器**：
-   - `AuditEntityListener`：處理基礎和用戶審計欄位
+2. **擴展審計欄位**：使用介面架構實現
+   - `AuditableInterface`：基礎審計介面，包含擴展審計欄位（如公司、部門信息）
+   - `UserAuditableInterface`：擴展自基礎介面，添加用戶相關審計欄位（如姓名）
+   - `EnvironmentAuditableInterface`：擴展自基礎介面，添加環境特有的審計欄位（如審核、部署相關欄位）
+
+3. **專用監聽器**：
+   - `AuditEntityListener`：處理擴展審計欄位（公司、部門）
    - `EnvironmentAuditListener`：處理環境特有審計欄位（審核、部署）
 
-3. **特別流程支援**：
+4. **特別流程支援**：
    - 添加了審核流程：`performReview` 方法填充審核相關欄位
    - 添加了部署流程：`performDeploy` 方法填充部署相關欄位
 
@@ -59,27 +65,17 @@
 ### 介面結構
 
 ```
-AuditableInterface (基礎審計介面)
+AuditableInterface (擴展審計介面)
 ├── UserAuditableInterface (用戶審計介面)
 └── EnvironmentAuditableInterface (環境審計介面)
 ```
 
 ### 1. AuditableInterface
 
-基礎審計介面，包含所有實體共用的標準審計欄位：
+基礎審計介面，包含擴展審計欄位：
 
 ```java
 public interface AuditableInterface {
-    // 標準審計欄位
-    String getCreatedBy();
-    void setCreatedBy(String createdBy);
-    LocalDateTime getCreatedTime();
-    void setCreatedTime(LocalDateTime createdTime);
-    String getModifiedBy();
-    void setModifiedBy(String modifiedBy);
-    LocalDateTime getModifiedTime();
-    void setModifiedTime(LocalDateTime modifiedTime);
-    
     // 擴展審計欄位
     String getCreatedCompany();
     void setCreatedCompany(String createdCompany);
@@ -138,7 +134,7 @@ public interface EnvironmentAuditableInterface extends AuditableInterface {
 
 #### 1. AuditEntityListener
 
-處理基礎和用戶審計欄位：
+處理擴展審計欄位：
 
 ```java
 @PrePersist
@@ -210,13 +206,18 @@ public void performReview(EnvironmentAuditableInterface entity, String reviewSta
 
 ## 核心實現
 
-本示範使用Spring Data JPA Auditing實現審計功能：
+本示範使用Spring Data JPA Auditing和自定義介面混合實現審計功能：
 
-1. **@EnableJpaAuditing**: 開啟Spring Data JPA審計功能
-2. **@CreatedBy, @LastModifiedBy**: 自動填充創建和修改者ID
-3. **@CreatedDate, @LastModifiedDate**: 自動填充創建和修改時間
-4. **AuditorAware**: 提供當前用戶ID
-5. **EntityListeners**: 使用實體監聽器填充擴展審計欄位(公司、部門、姓名等)
+1. **標準審計欄位**：使用Spring Data JPA Auditing實現
+   - **@EnableJpaAuditing**: 開啟Spring Data JPA審計功能
+   - **@CreatedBy, @LastModifiedBy**: 自動填充創建和修改者ID
+   - **@CreatedDate, @LastModifiedDate**: 自動填充創建和修改時間
+   - **AuditorAware**: 提供當前用戶ID
+
+2. **擴展審計欄位**：使用介面方式實現
+   - **AuditableInterface**: 定義基礎擴展審計欄位（公司、部門等）
+   - **EntityListeners**: 使用實體監聽器填充擴展審計欄位
+   - **自定義監聽器**: 負責填充不同類型的擴展審計欄位
 
 ## 快速開始
 
