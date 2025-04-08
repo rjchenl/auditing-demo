@@ -1,5 +1,6 @@
 package com.example.auditingdemo.model;
 
+import com.example.auditingdemo.audit.Auditable;
 import com.example.auditingdemo.listener.AuditEntityListener;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -25,6 +26,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @EntityListeners({AuditingEntityListener.class, AuditEntityListener.class})
+@Auditable
 public class Api {
 
     @Id

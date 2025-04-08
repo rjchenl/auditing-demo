@@ -1,5 +1,6 @@
 package com.example.auditingdemo.listener;
 
+import java.lang.reflect.Method;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,6 +8,7 @@ import org.springframework.beans.factory.annotation.Configurable;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
+import com.example.auditingdemo.audit.Auditable;
 import com.example.auditingdemo.audit.UserContext;
 import com.example.auditingdemo.model.User;
 import com.example.auditingdemo.model.Api;
@@ -18,8 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 通用審計監聽器
- * 用於處理擴展審計欄位 (company, unit, name)
- * 這些欄位不在 Spring Data JPA 標準審計功能中，需要額外處理
+ * 使用反射機制處理帶有 @Auditable 註解的實體
+ * 自動填充擴展審計欄位
  */
 @Slf4j
 @Component
@@ -31,135 +33,96 @@ public class AuditEntityListener {
     
     /**
      * 在實體持久化之前填充創建相關的擴展審計欄位
-     * 只處理創建相關欄位，不處理修改相關欄位
      */
     @PrePersist
     public void prePersist(Object entity) {
-        log.debug("實體創建前填充擴展審計欄位: {}", entity.getClass().getSimpleName());
-        if (entity instanceof User) {
-            fillAuditFields((User) entity, true);
-        } else if (entity instanceof Api) {
-            fillAuditFields((Api) entity, true);
+        if (isAuditableEntity(entity)) {
+            log.debug("實體創建前填充擴展審計欄位: {}", entity.getClass().getSimpleName());
+            processAuditFields(entity, true);
         }
     }
     
     /**
      * 在實體更新之前填充修改相關的擴展審計欄位
-     * 只處理修改相關欄位，不處理創建相關欄位
      */
     @PreUpdate
     public void preUpdate(Object entity) {
-        log.debug("實體更新前填充擴展審計欄位: {}", entity.getClass().getSimpleName());
-        if (entity instanceof User) {
-            fillAuditFields((User) entity, false);
-        } else if (entity instanceof Api) {
-            fillAuditFields((Api) entity, false);
+        if (isAuditableEntity(entity)) {
+            log.debug("實體更新前填充擴展審計欄位: {}", entity.getClass().getSimpleName());
+            processAuditFields(entity, false);
         }
     }
     
     /**
-     * 通用方法：填充審計欄位
+     * 檢查實體是否帶有 @Auditable 註解
+     */
+    private boolean isAuditableEntity(Object entity) {
+        return entity.getClass().isAnnotationPresent(Auditable.class);
+    }
+    
+    /**
+     * 處理審計欄位
      * 
-     * @param <T> 實體類型
      * @param entity 實體對象
-     * @param isCreate 是否為創建操作 (true為創建，false為修改)
+     * @param isCreate 是否為創建操作
      */
-    private <T> void fillAuditFields(T entity, boolean isCreate) {
+    private void processAuditFields(Object entity, boolean isCreate) {
         String token = UserContext.getCurrentUser();
-        if (token != null && !token.isEmpty()) {
-            try {
+        
+        try {
+            // 獲取審計信息
+            Map<String, String> userInfo = null;
+            if (token != null && !token.isEmpty()) {
                 TokenService tokenService = applicationContext.getBean(TokenService.class);
-                Map<String, String> userInfo = tokenService.getUserInfoFromToken(token);
-                
-                if (userInfo != null) {
-                    if (isCreate) {
-                        setCreatedAuditFields(entity, userInfo);
-                    } else {
-                        setModifiedAuditFields(entity, userInfo);
-                    }
-                }
-            } catch (Exception e) {
-                log.error("處理審計信息時發生錯誤", e);
-                if (isCreate) {
-                    setDefaultCreatedInfo(entity);
-                } else {
-                    setDefaultModifiedInfo(entity);
-                }
+                userInfo = tokenService.getUserInfoFromToken(token);
             }
-        } else {
+            
+            // 獲取註解信息
+            Auditable auditableAnnotation = entity.getClass().getAnnotation(Auditable.class);
+            
             if (isCreate) {
-                setDefaultCreatedInfo(entity);
+                // 設置創建相關審計欄位
+                if (userInfo != null) {
+                    setFieldValue(entity, auditableAnnotation.createdCompanyField(), userInfo.get("company"));
+                    setFieldValue(entity, auditableAnnotation.createdUnitField(), userInfo.get("unit"));
+                    setFieldValue(entity, auditableAnnotation.createdNameField(), userInfo.get("name"));
+                } else {
+                    setFieldValue(entity, auditableAnnotation.createdCompanyField(), "系統");
+                    setFieldValue(entity, auditableAnnotation.createdUnitField(), "系統");
+                    setFieldValue(entity, auditableAnnotation.createdNameField(), "系統");
+                }
             } else {
-                setDefaultModifiedInfo(entity);
+                // 設置修改相關審計欄位
+                if (userInfo != null) {
+                    setFieldValue(entity, auditableAnnotation.modifiedCompanyField(), userInfo.get("company"));
+                    setFieldValue(entity, auditableAnnotation.modifiedUnitField(), userInfo.get("unit"));
+                    setFieldValue(entity, auditableAnnotation.modifiedNameField(), userInfo.get("name"));
+                } else {
+                    setFieldValue(entity, auditableAnnotation.modifiedCompanyField(), "系統");
+                    setFieldValue(entity, auditableAnnotation.modifiedUnitField(), "系統");
+                    setFieldValue(entity, auditableAnnotation.modifiedNameField(), "系統");
+                }
             }
+        } catch (Exception e) {
+            log.error("處理審計欄位時發生錯誤: {}", e.getMessage(), e);
         }
     }
     
     /**
-     * 根據實體類型設置創建相關審計欄位
+     * 使用反射設置欄位值
      */
-    private <T> void setCreatedAuditFields(T entity, Map<String, String> userInfo) {
-        if (entity instanceof User) {
-            User user = (User) entity;
-            user.setCreatedCompany(userInfo.get("company"));
-            user.setCreatedUnit(userInfo.get("unit"));
-            user.setCreatedName(userInfo.get("name"));
-        } else if (entity instanceof Api) {
-            Api api = (Api) entity;
-            api.setCreatedCompany(userInfo.get("company"));
-            api.setCreatedUnit(userInfo.get("unit"));
-            api.setCreatedName(userInfo.get("name"));
-        }
-    }
-    
-    /**
-     * 根據實體類型設置修改相關審計欄位
-     */
-    private <T> void setModifiedAuditFields(T entity, Map<String, String> userInfo) {
-        if (entity instanceof User) {
-            User user = (User) entity;
-            user.setModifiedCompany(userInfo.get("company"));
-            user.setModifiedUnit(userInfo.get("unit"));
-            user.setModifiedName(userInfo.get("name"));
-        } else if (entity instanceof Api) {
-            Api api = (Api) entity;
-            api.setModifiedCompany(userInfo.get("company"));
-            api.setModifiedUnit(userInfo.get("unit"));
-            api.setModifiedName(userInfo.get("name"));
-        }
-    }
-    
-    /**
-     * 設置默認創建審計信息
-     */
-    private <T> void setDefaultCreatedInfo(T entity) {
-        if (entity instanceof User) {
-            User user = (User) entity;
-            user.setCreatedCompany("系統");
-            user.setCreatedUnit("系統");
-            user.setCreatedName("系統");
-        } else if (entity instanceof Api) {
-            Api api = (Api) entity;
-            api.setCreatedCompany("系統");
-            api.setCreatedUnit("系統");
-            api.setCreatedName("系統");
-        }
-    }
-    
-    /**
-     * 設置默認修改審計信息
-     */
-    private <T> void setDefaultModifiedInfo(T entity) {
-        if (entity instanceof User) {
-            User user = (User) entity;
-            user.setModifiedCompany("系統");
-            user.setModifiedUnit("系統");
-            user.setModifiedName("系統");
-        } else if (entity instanceof Api) {
-            Api api = (Api) entity;
-            api.setModifiedCompany("系統");
-            api.setModifiedUnit("系統");
-            api.setModifiedName("系統");
+    private void setFieldValue(Object entity, String fieldName, String value) {
+        try {
+            // 構建setter方法名稱 (例如: 欄位名 createdCompany -> setCreatedCompany)
+            String setterMethodName = "set" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
+            
+            // 獲取setter方法
+            Method setterMethod = entity.getClass().getMethod(setterMethodName, String.class);
+            
+            // 調用setter方法設置值
+            setterMethod.invoke(entity, value);
+        } catch (Exception e) {
+            log.warn("設置欄位 {} 值時發生錯誤: {}", fieldName, e.getMessage());
         }
     }
 } 

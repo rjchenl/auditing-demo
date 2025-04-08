@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Token控制器
- * 提供獲取JWT令牌的API接口，方便測試
+ * 提供獲取用戶令牌的API接口，方便測試
  */
 @Slf4j
 @RestController
@@ -27,11 +27,11 @@ public class TokenController {
     private TokenService tokenService;
     
     /**
-     * 獲取指定用戶的JWT令牌
+     * 獲取指定用戶的令牌
      */
     @GetMapping("/{userId}")
     public ResponseEntity<Map<String, String>> getToken(@PathVariable String userId) {
-        String token = tokenService.getJwtToken(userId);
+        String token = tokenService.getToken(userId);
         
         if (token == null) {
             log.warn("未找到用戶 {} 的令牌", userId);
@@ -43,32 +43,34 @@ public class TokenController {
         response.put("tokenHeader", "Bearer " + token);
         response.put("curlExample", getCurlExample(userId, token));
         
-        log.info("為用戶 {} 生成JWT令牌", userId);
+        log.info("為用戶 {} 生成令牌", userId);
         return ResponseEntity.ok(response);
     }
     
     /**
-     * 獲取所有可用的JWT令牌
+     * 獲取所有可用的令牌示例
      */
     @GetMapping
     public ResponseEntity<Map<String, Object>> getAllTokens() {
         Map<String, Object> response = new HashMap<>();
-        Map<String, String> tokens = tokenService.getAllJwtTokens();
+        // 使用預設的可用用戶
+        String[] availableUsers = {"kenbai", "peter", "shawn", "system"};
         
-        response.put("availableUsers", tokens.keySet());
+        response.put("availableUsers", availableUsers);
         
         Map<String, Map<String, String>> userExamples = new HashMap<>();
-        for (String userId : tokens.keySet()) {
+        for (String userId : availableUsers) {
             Map<String, String> examples = new HashMap<>();
-            examples.put("token", tokens.get(userId));
-            examples.put("tokenHeader", "Bearer " + tokens.get(userId));
-            examples.put("curlExample", getCurlExample(userId, tokens.get(userId)));
+            String token = tokenService.getToken(userId);
+            examples.put("token", token);
+            examples.put("tokenHeader", "Bearer " + token);
+            examples.put("curlExample", getCurlExample(userId, token));
             userExamples.put(userId, examples);
         }
         
         response.put("userExamples", userExamples);
         
-        log.info("提供所有可用JWT令牌");
+        log.info("提供所有可用令牌");
         return ResponseEntity.ok(response);
     }
     
@@ -76,7 +78,7 @@ public class TokenController {
      * 生成curl示例命令
      */
     private String getCurlExample(String userId, String token) {
-        return "curl -X POST http://localhost:8080/api/apis -H \"Content-Type: application/json\" -H \"Authorization: Bearer " 
-                + token + "\" -d '{\"apiname\": \"" + userId + "-api\", \"description\": \"" + userId + "的API\"}'";
+        return "curl -X POST http://localhost:8080/api/apis -H \"Content-Type: application/json\" -H \"Authorization: " 
+                + userId + "\" -d '{\"apiname\": \"" + userId + "-api\", \"description\": \"" + userId + "的API\"}'";
     }
 } 
