@@ -12,6 +12,7 @@
 6. [擴展與客製化](#擴展與客製化)
 7. [快速開始](#快速開始)
 8. [常見問題](#常見問題)
+9. [設計圖表](#設計圖表)
 
 ## 功能特色
 
@@ -25,6 +26,18 @@
 本專案使用混合式審計架構，結合 Spring Data JPA 的標準審計功能與自訂介面擴展：
 
 ![審計架構](https://example.com/audit-architecture.png)
+
+### 設計圖表
+
+為了更清晰地說明審計系統的設計，我們提供了一系列的 PlantUML 圖表：
+
+- **[審計系統架構概覽](docs/diagrams/audit-architecture.puml)** - 展示審計系統的整體架構與主要組件
+- **[審計欄位處理流程](docs/diagrams/audit-process.puml)** - 詳細說明審計欄位從請求到持久化的完整流程
+- **[審計類圖](docs/diagrams/audit-entities.puml)** - 展示審計相關的類和接口關係
+- **[審計欄位關系圖](docs/diagrams/audit-fields.puml)** - 詳細展示各類審計欄位的分組和從屬關係
+- **[審計元件交互圖](docs/diagrams/audit-component.puml)** - 說明審計系統各組件之間的交互關係
+
+您可以在[設計圖表目錄](docs/diagrams/)中找到更詳細的說明。
 
 ### 標準審計欄位
 
@@ -418,4 +431,35 @@ curl -X POST http://localhost:8080/api/users \
 ### 如何在測試中模擬審計功能？
 
 可以使用 Spring Security Test 提供的 `WithMockUser` 註解或手動設置 `UserContext` 中的用戶值。
+
+## 設計圖表
+
+本專案包含一系列 PlantUML 設計圖表，用於說明審計系統的設計和實現細節：
+
+### 審計系統架構概覽
+
+此圖展示整個審計系統的架構，包括標準審計框架、自定義審計接口和監聽器、用戶上下文處理機制等。
+- [查看架構圖](docs/diagrams/audit-architecture.puml)
+
+### 審計欄位處理流程
+
+詳細展示審計欄位從請求進入系統到數據最終持久化的完整流程，包括標準審計和擴展審計的處理路徑。
+- [查看流程圖](docs/diagrams/audit-process.puml)
+
+### 審計類圖
+
+說明系統中審計相關的類和接口關係，包括審計接口的繼承關係、實體與審計接口的實現關係等。
+- [查看類圖](docs/diagrams/audit-entities.puml)
+
+### 審計欄位關系圖
+
+詳細展示各類審計欄位的分組和關係，包括標準審計欄位、擴展審計欄位及環境特有審計欄位。
+- [查看欄位關系圖](docs/diagrams/audit-fields.puml)
+
+### 審計元件交互圖
+
+展示系統各組件之間的交互關係，包括控制器、實體、審計監聽器與上下文服務的交互。
+- [查看元件交互圖](docs/diagrams/audit-component.puml)
+
+您可以使用 PlantUML 工具查看這些圖表，或參考 [圖表說明文檔](docs/diagrams/README.md) 獲取更多信息。
  
