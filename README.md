@@ -601,7 +601,210 @@ curl -X POST http://localhost:8080/api/demo-complex-audit \
      -d '{"name":"測試實體關聯審計","description":"這是一個測試實體關聯審計方式的範例"}'
 ```
 
+**審計欄位實際值：**
+```json
+{
+    "id": 7,
+    "name": "測試實體關聯審計",
+    "description": "這是一個測試實體關聯審計方式的範例",
+    "createdByUser": {
+        "id": 51,
+        "name": "測試用戶",
+        "email": "test@example.com",
+        "description": "測試用戶帳號",
+        "username": "test-token",
+        "password": "none",
+        "statusId": "1",
+        ...其他用戶屬性...
+    },
+    "createdTime": "2025-04-09 13:25:58",
+    "lastModifiedByUser": {
+        "id": 51,
+        "name": "測試用戶",
+        "email": "test@example.com",
+        "description": "測試用戶帳號",
+        "username": "test-token",
+        ...其他用戶屬性...
+    },
+    "lastModifiedTime": "2025-04-09 13:25:58",
+    "version": 0
+}
+```
+
 **審計欄位說明：**
-- `createdByUser`：直接關聯到 User 實體，包含完整的創建者資訊
-- `createdTime`：創建時間
-- `lastModifiedByUser`
+- `createdByUser`：成功關聯到 "test-token" 對應的用戶實體（ID: 51, 名稱: "測試用戶"）
+- `createdTime`：自動設置為當前時間 "2025-04-09 13:25:58"
+- `lastModifiedByUser`：初始與創建者相同，也是同一個測試用戶實體
+- `lastModifiedTime`：初始與創建時間相同
+- `version`：初始值設置為 0
+
+#### 2. 查詢記錄
+
+```bash
+curl -X GET http://localhost:8080/api/demo-complex-audit/7
+```
+
+返回的結果中包含完整的用戶實體信息，無需額外查詢即可獲取審計者詳細資料。
+
+#### 3. 更新記錄
+
+```bash
+curl -X PUT http://localhost:8080/api/demo-complex-audit/7 \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer admin-token" \
+     -d '{"name":"更新的實體關聯審計","description":"更新實體關聯審計記錄"}'
+```
+
+**審計欄位變化：**
+```json
+{
+    "id": 7,
+    "name": "更新的實體關聯審計",
+    "description": "更新實體關聯審計記錄",
+    "createdByUser": {
+        "id": 51,
+        "name": "測試用戶",
+        "email": "test@example.com",
+        "description": "測試用戶帳號",
+        "username": "test-token",
+        ...不變的創建者資訊...
+    },
+    "createdTime": "2025-04-09 13:25:58",
+    "lastModifiedByUser": {
+        "id": 50,
+        "name": "系統用戶",
+        "email": "system@example.com",
+        "description": "系統管理員用戶",
+        "username": "system",
+        ...新的修改者資訊...
+    },
+    "lastModifiedTime": "2025-04-09 13:26:08",
+    "version": 1
+}
+```
+
+**審計欄位實際變化：**
+- `createdByUser`：保持不變，仍然是測試用戶（ID: 51）
+- `createdTime`：保持不變 "2025-04-09 13:25:58"
+- `lastModifiedByUser`：成功更新為系統用戶（ID: 50, 名稱: "系統用戶"）
+- `lastModifiedTime`：更新為當前時間 "2025-04-09 13:26:08"
+- `version`：正確遞增為 1
+
+#### 4. 再次查詢查看變化
+
+```bash
+curl -X GET http://localhost:8080/api/demo-complex-audit/7
+```
+
+可以觀察到審計欄位的完整變化，特別是`lastModifiedByUser`已更新為不同的用戶實體，而`createdByUser`保持不變。
+
+### 實體關聯審計的注意事項
+
+1. **性能考量**：關聯查詢可能會導致多表連接，影響查詢性能
+2. **序列化問題**：在序列化實體時需要注意避免無限遞迴問題
+3. **刪除策略**：需要謹慎設計實體的刪除策略，避免因為關聯導致的刪除問題
+
+### 實際測試案例
+
+以下是實際執行的測試案例，展示了實體關聯審計的具體運作方式。
+
+#### 1. 創建記錄
+
+```bash
+curl -X POST http://localhost:8080/api/demo-complex-audit \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer test-token" \
+     -d '{"name":"測試實體關聯審計","description":"這是一個測試實體關聯審計方式的範例"}'
+```
+
+
+**審計欄位說明：**
+- `createdByUser`：成功關聯到 "test-token" 對應的用戶實體（ID: 51, 名稱: "測試用戶"）
+- `createdTime`：自動設置為當前時間 "2025-04-09 13:25:58"
+- `lastModifiedByUser`：初始與創建者相同，也是同一個測試用戶實體
+- `lastModifiedTime`：初始與創建時間相同
+- `version`：初始值設置為 0
+
+#### 2. 查詢記錄
+
+```bash
+curl -X GET http://localhost:8080/api/demo-complex-audit/7
+```
+
+返回的結果中包含完整的用戶實體信息，無需額外查詢即可獲取審計者詳細資料。
+
+#### 3. 更新記錄
+
+```bash
+curl -X PUT http://localhost:8080/api/demo-complex-audit/7 \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer admin-token" \
+     -d '{"name":"更新的實體關聯審計","description":"更新實體關聯審計記錄"}'
+```
+
+
+**審計欄位實際變化：**
+- `createdByUser`：保持不變，仍然是測試用戶（ID: 51）
+- `createdTime`：保持不變 "2025-04-09 13:25:58"
+- `lastModifiedByUser`：成功更新為系統用戶（ID: 50, 名稱: "系統用戶"）
+- `lastModifiedTime`：更新為當前時間 "2025-04-09 13:26:08"
+- `version`：正確遞增為 1
+
+#### 4. 再次查詢查看變化
+
+```bash
+curl -X GET http://localhost:8080/api/demo-complex-audit/7
+```
+
+可以觀察到審計欄位的完整變化，特別是`lastModifiedByUser`已更新為不同的用戶實體，而`createdByUser`保持不變。
+
+### 實體關聯審計的關鍵發現
+
+通過上述實際測試，我們驗證了以下關鍵特性：
+
+1. **實體關聯正常運作**：審計欄位直接關聯到完整的用戶實體，而不僅僅是ID
+2. **審計字段不可篡改性**：
+   - 創建者信息在記錄生命週期中保持不變
+   - 修改者信息反映最後操作的用戶
+3. **版本控制有效性**：每次更新操作都正確遞增版本號
+4. **數據豐富性**：通過單次查詢即可獲取完整的審計用戶信息
+5. **無需關聯查詢**：不需要額外查詢用戶表即可獲取審計者詳細信息
+
+實體關聯審計相比基於字符串ID的審計，能提供更豐富、更直接的審計信息，適用於對審計要求較高的業務場景。
+
+### 實體關聯審計 (Entity Relationship Auditing) 總結
+
+實體關聯審計是一種通過外鍵關聯直接連接到審計者實體的審計方式，與傳統的只存儲審計者ID的方法相比，具有以下特點：
+
+#### 1. 實現機制
+```java
+// 實體類中使用 @ManyToOne 和 @JoinColumn 建立關聯
+@ManyToOne
+@JoinColumn(name = "created_by_id", nullable = false, updatable = false)
+private User createdByUser;
+
+@ManyToOne
+@JoinColumn(name = "last_modified_by_id", nullable = false)
+private User lastModifiedByUser;
+```
+
+```sql
+-- 資料庫中建立外鍵約束
+constraint fk_demo_complex_audit_created_by
+    foreign key (created_by_id) references pf_user (id),
+constraint fk_demo_complex_audit_modified_by
+    foreign key (last_modified_by_id) references pf_user (id)
+```
+
+#### 2. 操作方法
+- **創建記錄**：直接設置完整的 User 實體，而非僅設置 ID
+  ```java
+  complexAudit.setCreatedByUser(currentUser);
+  complexAudit.setLastModifiedByUser(currentUser);
+  ```
+
+- **更新記錄**：僅更新 lastModifiedByUser 欄位
+  ```java
+  existingAudit.setLastModifiedByUser(currentUser);
+  existingAudit.setLastModifiedTime(LocalDateTime.now());
+  ```
