@@ -13,7 +13,7 @@ import com.example.auditingdemo.repository.UserRepository;
 
 /**
  * 實體關聯審計配置類
- * 提供 AuditorAware<User> 實現，用於 AuditRecord 實體
+ * 提供 AuditorAware<User> 實現，用於實體關聯方式的審計
  * 注意：此配置類與主要的 JpaAuditingConfiguration 不會衝突，
  * 因為這裡只定義了 Bean，沒有啟用 @EnableJpaAuditing
  */

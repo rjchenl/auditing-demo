@@ -838,27 +838,35 @@ curl -X POST http://localhost:8080/api/environments \
 
 ```json
 {
-  "id": 8,
+  "id": 21,
   "name": "測試環境",
   "description": "用於測試的環境配置",
   "type": "TEST",
   "configValue": "{\"server\":\"test-server\",\"port\":8080,\"debug\":true}",
-  "status": 0,
-  "version": "1.0",
   "createdBy": "1001",
-  "createdTime": "2025-04-08T23:40:00.123456",
+  "createdTime": "2025-04-09 09:39:10",
   "modifiedBy": "1001",
-  "modifiedTime": "2025-04-08T23:40:00.123456",
-  "createdCompany": "測試公司",
-  "createdUnit": "研發部門",
-  "modifiedCompany": "測試公司",
-  "modifiedUnit": "研發部門",
+  "modifiedTime": "2025-04-09 09:39:10",
   "reviewedBy": null,
   "reviewedTime": null,
   "deployedBy": null,
   "deployedTime": null,
+  "version": null,
+  "status": 0,
+  "createdCompany": "測試公司",
+  "createdUnit": "研發部門",
+  "modifiedCompany": "測試公司",
+  "modifiedUnit": "研發部門",
+  "reviewedCompany": null,
+  "reviewedUnit": null,
   "deployedCompany": null,
-  "deployedUnit": null
+  "deployedUnit": null,
+  "reviewerName": null,
+  "reviewStatus": null,
+  "reviewComment": null,
+  "deployerName": null,
+  "deployStatus": null,
+  "deployComment": null
 }
 ```
 
@@ -869,7 +877,7 @@ curl -X POST http://localhost:8080/api/environments \
 ### 2. 提交審核環境配置（更新狀態為審核中）
 
 ```bash
-curl -X PUT http://localhost:8080/api/environments/8 \
+curl -X PUT http://localhost:8080/api/environments/21 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer test-token" \
   -d '{
@@ -885,29 +893,35 @@ curl -X PUT http://localhost:8080/api/environments/8 \
 
 ```json
 {
-  "id": 8,
+  "id": 21,
   "name": "測試環境",
   "description": "用於測試的環境配置",
   "type": "TEST",
   "configValue": "{\"server\":\"test-server\",\"port\":8080,\"debug\":true}",
-  "status": 1,
-  "version": "1.0",
   "createdBy": "1001",
-  "createdTime": "2025-04-08T23:40:00.123456",
+  "createdTime": "2025-04-09 09:39:10",
   "modifiedBy": "1001",
-  "modifiedTime": "2025-04-08T23:45:00.789012",
+  "modifiedTime": "2025-04-09 09:39:19",
+  "reviewedBy": null,
+  "reviewedTime": null,
+  "deployedBy": null,
+  "deployedTime": null,
+  "version": null,
+  "status": 1,
   "createdCompany": "測試公司",
   "createdUnit": "研發部門",
   "modifiedCompany": "測試公司",
   "modifiedUnit": "研發部門",
-  "reviewedBy": null,
-  "reviewedTime": null,
   "reviewedCompany": null,
   "reviewedUnit": null,
-  "deployedBy": null,
-  "deployedTime": null,
   "deployedCompany": null,
-  "deployedUnit": null
+  "deployedUnit": null,
+  "reviewerName": null,
+  "reviewStatus": null,
+  "reviewComment": null,
+  "deployerName": null,
+  "deployStatus": null,
+  "deployComment": null
 }
 ```
 
@@ -919,7 +933,7 @@ curl -X PUT http://localhost:8080/api/environments/8 \
 ### 3. 審核環境配置（更新狀態為已審核）
 
 ```bash
-curl -X PUT http://localhost:8080/api/environments/8 \
+curl -X PUT http://localhost:8080/api/environments/21 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer admin-token" \
   -d '{
@@ -927,11 +941,7 @@ curl -X PUT http://localhost:8080/api/environments/8 \
     "description": "用於測試的環境配置",
     "type": "TEST",
     "configValue": "{\"server\":\"test-server\",\"port\":8080,\"debug\":true}",
-    "status": 2,
-    "reviewedBy": "1002",
-    "reviewedTime": "2025-04-08 23:50:00",
-    "reviewedCompany": "測試公司",
-    "reviewedUnit": "管理部門"
+    "status": 2
   }' | jq
 ```
 
@@ -939,42 +949,49 @@ curl -X PUT http://localhost:8080/api/environments/8 \
 
 ```json
 {
-  "id": 8,
+  "id": 21,
   "name": "測試環境",
   "description": "用於測試的環境配置",
   "type": "TEST",
   "configValue": "{\"server\":\"test-server\",\"port\":8080,\"debug\":true}",
-  "status": 2,
-  "version": "1.0",
   "createdBy": "1001",
-  "createdTime": "2025-04-08T23:40:00.123456",
+  "createdTime": "2025-04-09 09:39:10",
   "modifiedBy": "1002",
-  "modifiedTime": "2025-04-08T23:50:00.456789",
+  "modifiedTime": "2025-04-09 09:45:28",
+  "reviewedBy": "1002",
+  "reviewedTime": "2025-04-09 09:45:28",
+  "deployedBy": null,
+  "deployedTime": null,
+  "version": null,
+  "status": 2,
   "createdCompany": "測試公司",
   "createdUnit": "研發部門",
   "modifiedCompany": "測試公司",
   "modifiedUnit": "管理部門",
-  "reviewedBy": "1002",
-  "reviewedTime": "2025-04-08T23:50:00.456789",
   "reviewedCompany": "測試公司",
   "reviewedUnit": "管理部門",
-  "deployedBy": null,
-  "deployedTime": null,
   "deployedCompany": null,
-  "deployedUnit": null
+  "deployedUnit": null,
+  "reviewerName": "管理員",
+  "reviewStatus": "已審核",
+  "reviewComment": "透過狀態更新自動審核",
+  "deployerName": null,
+  "deployStatus": null,
+  "deployComment": null
 }
 ```
 
 **審計欄位變化：**
 - `status` 變更為 2（已審核）
 - `modifiedBy`, `modifiedTime` 等修改欄位更新
-- 審核欄位 `reviewedBy`, `reviewedTime`, `reviewedCompany`, `reviewedUnit` 被填充
+- 審核欄位 `reviewedBy`, `reviewedTime`, `reviewedCompany`, `reviewedUnit` 被自動填充
+- 擴展審核欄位 `reviewerName`, `reviewStatus`, `reviewComment` 也被自動填充
 - 部署欄位仍為 null
 
 ### 4. 部署環境配置（更新狀態為已部署）
 
 ```bash
-curl -X PUT http://localhost:8080/api/environments/8 \
+curl -X PUT http://localhost:8080/api/environments/21 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer admin-token" \
   -d '{
@@ -982,15 +999,7 @@ curl -X PUT http://localhost:8080/api/environments/8 \
     "description": "用於測試的環境配置",
     "type": "TEST",
     "configValue": "{\"server\":\"test-server\",\"port\":8080,\"debug\":true}",
-    "status": 3,
-    "reviewedBy": "1002",
-    "reviewedTime": "2025-04-08 23:50:00",
-    "reviewedCompany": "測試公司",
-    "reviewedUnit": "管理部門",
-    "deployedBy": "1002",
-    "deployedTime": "2025-04-08 23:55:00",
-    "deployedCompany": "測試公司",
-    "deployedUnit": "管理部門"
+    "status": 3
   }' | jq
 ```
 
@@ -998,36 +1007,76 @@ curl -X PUT http://localhost:8080/api/environments/8 \
 
 ```json
 {
-  "id": 8,
+  "id": 21,
   "name": "測試環境",
   "description": "用於測試的環境配置",
   "type": "TEST",
   "configValue": "{\"server\":\"test-server\",\"port\":8080,\"debug\":true}",
-  "status": 3,
-  "version": "1.0",
   "createdBy": "1001",
-  "createdTime": "2025-04-08T23:40:00.123456",
+  "createdTime": "2025-04-09 09:39:10",
   "modifiedBy": "1002",
-  "modifiedTime": "2025-04-08T23:55:00.123456",
+  "modifiedTime": "2025-04-09 09:45:33",
+  "reviewedBy": "1002",
+  "reviewedTime": "2025-04-09 09:45:28",
+  "deployedBy": "1002",
+  "deployedTime": "2025-04-09 09:45:33",
+  "version": null,
+  "status": 3,
   "createdCompany": "測試公司",
   "createdUnit": "研發部門",
   "modifiedCompany": "測試公司",
   "modifiedUnit": "管理部門",
-  "reviewedBy": "1002",
-  "reviewedTime": "2025-04-08T23:50:00.456789",
   "reviewedCompany": "測試公司",
   "reviewedUnit": "管理部門",
-  "deployedBy": "1002",
-  "deployedTime": "2025-04-08T23:55:00.123456",
   "deployedCompany": "測試公司",
-  "deployedUnit": "管理部門"
+  "deployedUnit": "管理部門",
+  "reviewerName": "管理員",
+  "reviewStatus": "已審核",
+  "reviewComment": "透過狀態更新自動審核",
+  "deployerName": "管理員",
+  "deployStatus": "已部署",
+  "deployComment": "透過狀態更新自動部署"
 }
 ```
 
 **審計欄位變化：**
 - `status` 變更為 3（已部署）
 - `modifiedBy`, `modifiedTime` 等修改欄位更新
-- 部署欄位 `deployedBy`, `deployedTime`, `deployedCompany`, `deployedUnit` 被填充
+- 部署欄位 `deployedBy`, `deployedTime`, `deployedCompany`, `deployedUnit` 被自動填充
+- 擴展部署欄位 `deployerName`, `deployStatus`, `deployComment` 也被自動填充
+
+### 5. 查看最終審計欄位
+
+```bash
+curl -X GET http://localhost:8080/api/environments/21/audit-fields | jq
+```
+
+輸出結果：
+
+```json
+{
+  "created_time": "2025-04-09T09:39:10.545391",
+  "deployed_company": "測試公司",
+  "reviewed_by": "1002",
+  "modified_company": "測試公司",
+  "deployed_unit": "管理部門",
+  "modified_unit": "管理部門",
+  "created_by": "1001",
+  "created_company": "測試公司",
+  "version": null,
+  "deployed_time": "2025-04-09T09:45:33.123456",
+  "modified_time": "2025-04-09T09:45:33.123456",
+  "name": "測試環境",
+  "modified_by": "1002",
+  "reviewed_time": "2025-04-09T09:45:28.123456",
+  "reviewed_company": "測試公司",
+  "id": 21,
+  "deployed_by": "1002",
+  "reviewed_unit": "管理部門",
+  "created_unit": "研發部門",
+  "status": 3
+}
+```
 
 ## 四、API 審計演示 (pf_api)
 
@@ -1102,27 +1151,226 @@ curl -X PUT http://localhost:8080/api/apis/1 \
 - `createdBy`, `createdCompany`, `createdUnit`, `createdName`, `createdTime` 保持不變
 - `modifiedBy`, `modifiedCompany`, `modifiedUnit`, `modifiedName`, `modifiedTime` 更新為新的修改者和時間
 
-## 對比傳統審計方式
+## 實體關聯審計示例
 
-相比於傳統只存儲用戶 ID 的審計方式，複雜審計功能有以下優勢：
+除了使用 `String` 類型作為審計者識別符外，本專案也示範了如何實現實體關聯式的審計功能，即使用 `AuditorAware<User>` 的方式直接關聯到用戶實體。
 
-1. **資訊更完整**：存儲用戶的全部資訊，而不僅是 ID
-2. **無需關聯查詢**：直接從審計欄位獲取完整用戶資訊
-3. **歷史快照**：即使用戶資訊後來變更，審計記錄仍保留操作時的用戶狀態
-4. **彈性更大**：可以根據需求擴展存儲的用戶屬性
-5. **簡化報表**：所有資訊集中在一處，便於生成審計報表
+### 1. 實體定義
 
-## 可用的測試令牌
+```java
+@Entity
+@Table(name = "pf_demo_complex_audit")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ComplexAudit {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false, length = 100)
+    private String name;
+    
+    @Column
+    private String description;
+    
+    // 使用實體關聯方式的審計字段
+    @ManyToOne
+    @JoinColumn(name = "created_by_id", nullable = false, updatable = false)
+    private User createdByUser;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Column(name = "created_time", nullable = false, updatable = false)
+    private LocalDateTime createdTime;
+    
+    @ManyToOne
+    @JoinColumn(name = "last_modified_by_id", nullable = false)
+    private User lastModifiedByUser;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Column(name = "last_modified_time", nullable = false)
+    private LocalDateTime lastModifiedTime;
+    
+    @Column(nullable = false)
+    private Integer version;
+}
+```
 
-演示中可使用的令牌：
+### 2. 資料庫表結構
 
-1. `test-token` - 普通用戶
-   - ID: 1001
-   - 用戶名: test.user
-   - 角色: ADMIN,USER
+```sql
+CREATE TABLE IF NOT EXISTS pf_demo_complex_audit (
+    id                  bigserial
+        constraint pf_demo_complex_audit_pk
+            primary key,
+    name                varchar(100)                         not null,
+    description         text,
+    -- 實體關聯方式審計欄位
+    created_by_id       bigint                               not null,
+    created_time        timestamp    default now()           not null,
+    last_modified_by_id bigint                               not null,
+    last_modified_time  timestamp    default now()           not null,
+    version             integer      default 0               not null,
+    
+    -- 外鍵約束
+    constraint fk_demo_complex_audit_created_by
+        foreign key (created_by_id) references pf_user (id),
+    constraint fk_demo_complex_audit_modified_by
+        foreign key (last_modified_by_id) references pf_user (id)
+);
+```
 
-2. `admin-token` - 管理員
-   - ID: 1002
-   - 用戶名: admin.user
-   - 角色: SUPER_ADMIN
- 
+### 3. 控制器實現
+
+```java
+@Slf4j
+@RestController
+@RequestMapping("/api/demo-complex-audit")
+public class ComplexAuditController {
+
+    @Autowired
+    private ComplexAuditRepository complexAuditRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
+    
+    /**
+     * 創建複雜審計記錄
+     * 手動處理審計字段
+     */
+    @PostMapping
+    public ComplexAudit createComplexAudit(
+            @RequestBody ComplexAudit complexAudit,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        
+        try {
+            // 設置請求頭中的用戶令牌到UserContext
+            setUserContext(authHeader);
+            
+            // 獲取當前審計用戶
+            User currentUser = getCurrentAuditor();
+            
+            // 設置審計字段
+            complexAudit.setVersion(0);
+            complexAudit.setCreatedByUser(currentUser);
+            complexAudit.setCreatedTime(LocalDateTime.now());
+            complexAudit.setLastModifiedByUser(currentUser);
+            complexAudit.setLastModifiedTime(LocalDateTime.now());
+            
+            // 保存記錄
+            return complexAuditRepository.save(complexAudit);
+        } finally {
+            // 清除 ThreadLocal
+            UserContext.clear();
+        }
+    }
+    
+    /**
+     * 獲取當前審計用戶
+     */
+    private User getCurrentAuditor() {
+        String token = UserContext.getCurrentUser();
+        
+        // 根據token查找用戶
+        if (token != null && !token.isEmpty()) {
+            Optional<User> user = userRepository.findByUsername(token);
+            if (user.isPresent()) {
+                return user.get();
+            }
+        }
+        
+        // 返回系統用戶
+        return userRepository.findByUsername("system")
+                .orElseThrow(() -> new IllegalStateException("找不到有效的審計用戶"));
+    }
+}
+```
+
+### 4. 測試指令
+
+準備測試環境：
+
+```bash
+# 確保系統用戶和測試用戶存在
+INSERT INTO pf_user (username, name, description, email, password, status_id, created_by, created_time, modified_by, modified_time) 
+VALUES ('system', '系統用戶', '系統管理員用戶', 'system@example.com', 'none', '1', 'system', now(), 'system', now()),
+       ('test-token', '測試用戶', '測試用戶帳號', 'test@example.com', 'none', '1', 'system', now(), 'system', now());
+```
+
+創建記錄:
+
+```bash
+curl -X POST http://localhost:8080/api/demo-complex-audit \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer test-token" \
+     -d '{"name":"測試實體關聯審計","description":"這是一個測試實體關聯審計方式的範例"}'
+```
+
+回應:
+
+```json
+{
+  "id": 1,
+  "name": "測試實體關聯審計",
+  "description": "這是一個測試實體關聯審計方式的範例",
+  "createdByUser": {
+    "id": 2,
+    "name": "測試用戶",
+    "email": "test@example.com",
+    "description": "測試用戶帳號",
+    "username": "test-token",
+    ...
+  },
+  "createdTime": "2025-04-09 10:47:04",
+  "lastModifiedByUser": {
+    "id": 2,
+    "name": "測試用戶",
+    ...
+  },
+  "lastModifiedTime": "2025-04-09 10:47:04",
+  "version": 0
+}
+```
+
+更新記錄:
+
+```bash
+curl -X PUT http://localhost:8080/api/demo-complex-audit/1 \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer admin-token" \
+     -d '{"name":"已更新的測試實體關聯審計","description":"這是一個測試實體關聯審計方式的更新範例"}'
+```
+
+回應:
+
+```json
+{
+  "id": 1,
+  "name": "已更新的測試實體關聯審計",
+  "description": "這是一個測試實體關聯審計方式的更新範例",
+  "createdByUser": {
+    "id": 2,
+    "name": "測試用戶",
+    ...
+  },
+  "createdTime": "2025-04-09 10:47:04",
+  "lastModifiedByUser": {
+    "id": 1,
+    "name": "系統用戶",
+    ...
+  },
+  "lastModifiedTime": "2025-04-09 10:47:15",
+  "version": 1
+}
+```
+
+### 5. 實體關聯審計方式的優點
+
+1. **完整數據關聯**: 直接關聯到用戶實體，可以獲得用戶的完整信息
+2. **數據完整性**: 通過外鍵約束確保審計數據的完整性和一致性
+3. **查詢便利性**: 可以直接通過關聯獲取審計用戶的詳細信息
+4. **業務語義清晰**: 審計字段的命名和關聯更符合業務語義
+
+這種方式特別適合需要保存完整審計用戶信息和強關聯的場景，與基於字符串ID的審計方式相比，提供了更豐富的審計信息和更強的數據完整性。 

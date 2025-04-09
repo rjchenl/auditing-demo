@@ -157,28 +157,46 @@ COMMENT ON COLUMN pf_environment.deployed_time IS '部署時間';
 COMMENT ON COLUMN pf_environment.deployed_company IS '部署人員公司';
 COMMENT ON COLUMN pf_environment.deployed_unit IS '部署人員單位';
 
-        -- 創建複雜審計示範表
+-- 初始化測試用戶資料，用於實體關聯審計功能
+INSERT INTO pf_user (id, username, name, description, email, password, status_id, created_by, created_time, modified_by, modified_time) 
+VALUES 
+(50, 'system', '系統用戶', '系統管理員用戶', 'system@example.com', 'none', '1', 'system', now(), 'system', now()),
+(51, 'test-token', '測試用戶', '測試用戶帳號', 'test@example.com', 'none', '1', 'system', now(), 'system', now()),
+(52, 'admin-token', '管理員用戶', '管理員帳號', 'admin@example.com', 'none', '1', 'system', now(), 'system', now());
+
+-- 設置序列值，確保之後的自增ID正確
+SELECT setval('pf_user_id_seq', 100, true);
+
+-- 修改 pf_demo_complex_audit 表結構，將 JSON 類型改為實體關聯
+DROP TABLE IF EXISTS pf_demo_complex_audit;
+
 CREATE TABLE pf_demo_complex_audit (
     id                  bigserial
         constraint pf_demo_complex_audit_pk
             primary key,
     name                varchar(100)                         not null,
     description         text,
-    -- 複雜審計欄位（使用 JSON 類型存儲完整的用戶資訊）
-    created_by_user     jsonb                               not null,
+    -- 實體關聯方式審計欄位
+    created_by_id       bigint                               not null,
     created_time        timestamp    default now()           not null,
-    last_modified_by_user jsonb                             not null,
+    last_modified_by_id bigint                               not null,
     last_modified_time  timestamp    default now()           not null,
-    version            integer      default 0               not null
+    version             integer      default 0               not null,
+    
+    -- 外鍵約束
+    constraint fk_demo_complex_audit_created_by
+        foreign key (created_by_id) references pf_user (id),
+    constraint fk_demo_complex_audit_modified_by
+        foreign key (last_modified_by_id) references pf_user (id)
 );
 
-COMMENT ON TABLE pf_demo_complex_audit IS '複雜審計示範表';
+COMMENT ON TABLE pf_demo_complex_audit IS '實體關聯審計示範表';
 COMMENT ON COLUMN pf_demo_complex_audit.id IS '主鍵';
 COMMENT ON COLUMN pf_demo_complex_audit.name IS '名稱';
 COMMENT ON COLUMN pf_demo_complex_audit.description IS '描述';
-COMMENT ON COLUMN pf_demo_complex_audit.created_by_user IS '創建者完整資訊（JSON格式）';
+COMMENT ON COLUMN pf_demo_complex_audit.created_by_id IS '創建者ID (關聯至用戶實體)';
 COMMENT ON COLUMN pf_demo_complex_audit.created_time IS '創建時間';
-COMMENT ON COLUMN pf_demo_complex_audit.last_modified_by_user IS '最後修改者完整資訊（JSON格式）';
+COMMENT ON COLUMN pf_demo_complex_audit.last_modified_by_id IS '最後修改者ID (關聯至用戶實體)';
 COMMENT ON COLUMN pf_demo_complex_audit.last_modified_time IS '最後修改時間';
 COMMENT ON COLUMN pf_demo_complex_audit.version IS '版本號';
 
