@@ -39,12 +39,16 @@ public class EnvironmentAuditListener {
             // 獲取當前用戶
             String token = UserContext.getCurrentUser();
             String reviewerName = "系統";
+            String reviewedCompany = "系統";
+            String reviewedUnit = "系統";
             
             if (token != null && !token.isEmpty()) {
                 try {
                     TokenService tokenService = applicationContext.getBean(TokenService.class);
                     var userInfo = tokenService.getUserInfoFromToken(token);
                     reviewerName = userInfo.get("name");
+                    reviewedCompany = userInfo.get("company");
+                    reviewedUnit = userInfo.get("unit");
                 } catch (Exception e) {
                     log.error("從令牌獲取用戶信息時出錯: {}", e.getMessage(), e);
                 }
@@ -65,6 +69,10 @@ public class EnvironmentAuditListener {
             entity.setReviewedBy(userId);
             entity.setReviewedTime(java.time.LocalDateTime.now());
             
+            // 設置審核者公司和部門
+            entity.setReviewedCompany(reviewedCompany);
+            entity.setReviewedUnit(reviewedUnit);
+            
         } catch (Exception e) {
             log.error("執行審核操作時發生錯誤: {}", e.getMessage(), e);
         }
@@ -84,12 +92,16 @@ public class EnvironmentAuditListener {
             // 獲取當前用戶
             String token = UserContext.getCurrentUser();
             String deployerName = "系統";
+            String deployedCompany = "系統";
+            String deployedUnit = "系統";
             
             if (token != null && !token.isEmpty()) {
                 try {
                     TokenService tokenService = applicationContext.getBean(TokenService.class);
                     var userInfo = tokenService.getUserInfoFromToken(token);
                     deployerName = userInfo.get("name");
+                    deployedCompany = userInfo.get("company");
+                    deployedUnit = userInfo.get("unit");
                 } catch (Exception e) {
                     log.error("從令牌獲取用戶信息時出錯: {}", e.getMessage(), e);
                 }
@@ -109,6 +121,10 @@ public class EnvironmentAuditListener {
             }
             entity.setDeployedBy(userId);
             entity.setDeployedTime(java.time.LocalDateTime.now());
+            
+            // 設置部署者公司和部門
+            entity.setDeployedCompany(deployedCompany);
+            entity.setDeployedUnit(deployedUnit);
             
             // 設置狀態為已部署
             entity.setStatus(3); // 3: 已部署

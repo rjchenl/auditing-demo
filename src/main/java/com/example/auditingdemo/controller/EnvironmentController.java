@@ -127,8 +127,55 @@ public class EnvironmentController {
                             environment.setDescription(environmentDetails.getDescription());
                         }
                         
+                        // 處理狀態變更
                         if (environmentDetails.getStatus() != null) {
-                            environment.setStatus(environmentDetails.getStatus());
+                            int oldStatus = environment.getStatus();
+                            int newStatus = environmentDetails.getStatus();
+                            environment.setStatus(newStatus);
+                            
+                            // 如果狀態從其他狀態變更為已審核(2)，則更新審核欄位
+                            if (oldStatus != 2 && newStatus == 2) {
+                                // 檢查是否提供了審核欄位
+                                if (environmentDetails.getReviewedBy() != null) {
+                                    environment.setReviewedBy(environmentDetails.getReviewedBy());
+                                }
+                                if (environmentDetails.getReviewedTime() != null) {
+                                    environment.setReviewedTime(environmentDetails.getReviewedTime());
+                                }
+                                if (environmentDetails.getReviewedCompany() != null) {
+                                    environment.setReviewedCompany(environmentDetails.getReviewedCompany());
+                                }
+                                if (environmentDetails.getReviewedUnit() != null) {
+                                    environment.setReviewedUnit(environmentDetails.getReviewedUnit());
+                                }
+                                
+                                // 如果沒有提供審核欄位，則使用監聽器自動設置
+                                if (environment.getReviewedBy() == null) {
+                                    environmentAuditListener.performReview(environment, "已審核", "透過狀態更新自動審核");
+                                }
+                            }
+                            
+                            // 如果狀態從其他狀態變更為已部署(3)，則更新部署欄位
+                            if (oldStatus != 3 && newStatus == 3) {
+                                // 檢查是否提供了部署欄位
+                                if (environmentDetails.getDeployedBy() != null) {
+                                    environment.setDeployedBy(environmentDetails.getDeployedBy());
+                                }
+                                if (environmentDetails.getDeployedTime() != null) {
+                                    environment.setDeployedTime(environmentDetails.getDeployedTime());
+                                }
+                                if (environmentDetails.getDeployedCompany() != null) {
+                                    environment.setDeployedCompany(environmentDetails.getDeployedCompany());
+                                }
+                                if (environmentDetails.getDeployedUnit() != null) {
+                                    environment.setDeployedUnit(environmentDetails.getDeployedUnit());
+                                }
+                                
+                                // 如果沒有提供部署欄位，則使用監聽器自動設置
+                                if (environment.getDeployedBy() == null) {
+                                    environmentAuditListener.performDeploy(environment, "已部署", "透過狀態更新自動部署");
+                                }
+                            }
                         }
                         
                         // 保存更新
