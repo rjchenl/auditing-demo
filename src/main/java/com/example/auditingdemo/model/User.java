@@ -1,16 +1,10 @@
 package com.example.auditingdemo.model;
 
-import java.time.LocalDateTime;
-
-import org.springframework.data.annotation.CreatedBy;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedBy;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import com.example.auditingdemo.audit.UserAuditableInterface;
 import com.example.auditingdemo.listener.AuditEntityListener;
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.example.auditingdemo.model.base.BaseAuditEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,12 +12,11 @@ import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 /**
@@ -34,10 +27,11 @@ import lombok.NoArgsConstructor;
 @Table(name = "pf_user")
 @EntityListeners({AuditingEntityListener.class, AuditEntityListener.class})
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class User implements UserAuditableInterface {
+public class User extends BaseAuditEntity implements UserAuditableInterface {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -62,43 +56,64 @@ public class User implements UserAuditableInterface {
     
     private String defaultLanguage;
     
-    // 標準審計欄位 - 由Spring Data JPA自動處理
-    @CreatedBy
-    @ManyToOne
-    @JoinColumn(name = "created_by", nullable = false, updatable = false)
-    @JsonIgnore // 避免JSON序列化時的循環引用
-    private User createdBy;
+    // 實現 UserAuditableInterface 的方法
+    @Override
+    public String getCreatedName() {
+        return super.getCreatedName();
+    }
     
-    @CreatedDate
-    @Column(name = "created_time", nullable = false, updatable = false)
-    private LocalDateTime createdTime;
+    @Override
+    public void setCreatedName(String createdName) {
+        super.setCreatedName(createdName);
+    }
     
-    @LastModifiedBy
-    @ManyToOne
-    @JoinColumn(name = "modified_by", nullable = false)
-    @JsonIgnore // 避免JSON序列化時的循環引用
-    private User modifiedBy;
+    @Override
+    public String getModifiedName() {
+        return super.getModifiedName();
+    }
     
-    @LastModifiedDate
-    @Column(name = "modified_time", nullable = false)
-    private LocalDateTime modifiedTime;
+    @Override
+    public void setModifiedName(String modifiedName) {
+        super.setModifiedName(modifiedName);
+    }
     
-    // 擴展審計欄位 - 由自定義的AuditEntityListener處理
-    @Column(name = "created_company")
-    private String createdCompany;
+    @Override
+    public String getCreatedCompany() {
+        return super.getCreatedCompany();
+    }
     
-    @Column(name = "created_unit")
-    private String createdUnit;
+    @Override
+    public void setCreatedCompany(String createdCompany) {
+        super.setCreatedCompany(createdCompany);
+    }
     
-    @Column(name = "created_name")
-    private String createdName;
+    @Override
+    public String getCreatedUnit() {
+        return super.getCreatedUnit();
+    }
     
-    @Column(name = "modified_company")
-    private String modifiedCompany;
+    @Override
+    public void setCreatedUnit(String createdUnit) {
+        super.setCreatedUnit(createdUnit);
+    }
     
-    @Column(name = "modified_unit")
-    private String modifiedUnit;
+    @Override
+    public String getModifiedCompany() {
+        return super.getModifiedCompany();
+    }
     
-    @Column(name = "modified_name")
-    private String modifiedName;
+    @Override
+    public void setModifiedCompany(String modifiedCompany) {
+        super.setModifiedCompany(modifiedCompany);
+    }
+    
+    @Override
+    public String getModifiedUnit() {
+        return super.getModifiedUnit();
+    }
+    
+    @Override
+    public void setModifiedUnit(String modifiedUnit) {
+        super.setModifiedUnit(modifiedUnit);
+    }
 } 
