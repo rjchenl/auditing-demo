@@ -51,6 +51,28 @@ public class TokenService {
         systemInfo.put("company", "系統");
         systemInfo.put("unit", "系統");
         TOKEN_USER_MAP.put("system", systemInfo);
+        
+        // 添加用於測試的簡單token
+        Map<String, String> user111Info = new HashMap<>();
+        user111Info.put("userId", "111");
+        user111Info.put("name", "測試用戶111");
+        user111Info.put("company", "測試公司");
+        user111Info.put("unit", "測試部門");
+        TOKEN_USER_MAP.put("111", user111Info);
+        
+        Map<String, String> user222Info = new HashMap<>();
+        user222Info.put("userId", "222");
+        user222Info.put("name", "測試用戶222");
+        user222Info.put("company", "測試公司");
+        user222Info.put("unit", "研發部門");
+        TOKEN_USER_MAP.put("222", user222Info);
+        
+        Map<String, String> user333Info = new HashMap<>();
+        user333Info.put("userId", "333");
+        user333Info.put("name", "測試用戶333");
+        user333Info.put("company", "測試公司");
+        user333Info.put("unit", "管理部門");
+        TOKEN_USER_MAP.put("333", user333Info);
     }
     
     /**
@@ -67,8 +89,13 @@ public class TokenService {
      * 從token中獲取用戶信息
      */
     public Map<String, String> getUserInfoFromToken(String token) {
-        // 實際項目中，這裡應該解析 JWT 或從數據庫中查詢用戶信息
-        // 這裡僅為演示提供模擬數據
+        // 首先檢查TOKEN_USER_MAP中是否有對應的用戶信息
+        if (token != null && TOKEN_USER_MAP.containsKey(token)) {
+            log.info("找到預設的token映射: {}", token);
+            return TOKEN_USER_MAP.get(token);
+        }
+        
+        // 以下是原有的邏輯，作為備選
         Map<String, String> userInfo = new HashMap<>();
         
         // 模擬不同的用戶令牌返回不同的用戶信息
@@ -113,6 +140,7 @@ public class TokenService {
     public void addCustomToken(String token, Map<String, String> userInfo) {
         if (token != null && !token.isEmpty() && userInfo != null) {
             TOKEN_USER_MAP.put(token.toLowerCase(), new HashMap<>(userInfo));
+            log.info("添加自定義令牌 {}: {}", token, userInfo);
         }
     }
 } 
