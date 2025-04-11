@@ -6,6 +6,7 @@ import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 import com.example.auditingdemo.audit.CustomAuditorAware;
+import com.example.auditingdemo.model.User;
 
 /**
  * JPA審計配置類
@@ -19,7 +20,7 @@ public class JpaAuditingConfiguration {
      * 審計者提供者bean
      */
     @Bean
-    public AuditorAware<String> auditorProvider() {
+    public AuditorAware<User> auditorProvider() {
         return new CustomAuditorAware();
     }
 } 

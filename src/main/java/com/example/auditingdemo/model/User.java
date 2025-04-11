@@ -10,6 +10,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import com.example.auditingdemo.audit.UserAuditableInterface;
 import com.example.auditingdemo.listener.AuditEntityListener;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,6 +18,8 @@ import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -61,16 +64,20 @@ public class User implements UserAuditableInterface {
     
     // 標準審計欄位 - 由Spring Data JPA自動處理
     @CreatedBy
-    @Column(name = "created_by", nullable = false, updatable = false)
-    private String createdBy;
+    @ManyToOne
+    @JoinColumn(name = "created_by", nullable = false, updatable = false)
+    @JsonIgnore // 避免JSON序列化時的循環引用
+    private User createdBy;
     
     @CreatedDate
     @Column(name = "created_time", nullable = false, updatable = false)
     private LocalDateTime createdTime;
     
     @LastModifiedBy
-    @Column(name = "modified_by", nullable = false)
-    private String modifiedBy;
+    @ManyToOne
+    @JoinColumn(name = "modified_by", nullable = false)
+    @JsonIgnore // 避免JSON序列化時的循環引用
+    private User modifiedBy;
     
     @LastModifiedDate
     @Column(name = "modified_time", nullable = false)

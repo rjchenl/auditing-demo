@@ -17,12 +17,12 @@ CREATE TABLE pf_demo_user
     company_id       varchar(100),
     status_id        varchar(20)                           not null,
     -- 審計欄位 (Spring Data JPA Auditing)
-    created_by       varchar(100)                          not null,
+    created_by       bigint                                not null,
     created_company  varchar(100),
     created_unit     varchar(100),
     created_name     varchar(100),
     created_time     timestamp   default now()             not null,
-    modified_by      varchar(100)                          not null,
+    modified_by      bigint                                not null,
     modified_company varchar(100),
     modified_unit    varchar(100),
     modified_name    varchar(100),
@@ -53,3 +53,7 @@ COMMENT ON COLUMN pf_demo_user.modified_unit IS '修改人員單位';
 COMMENT ON COLUMN pf_demo_user.modified_name IS '修改人員姓名';
 COMMENT ON COLUMN pf_demo_user.modified_time IS '修改時間';
 COMMENT ON COLUMN pf_demo_user.default_language IS '預設語言';
+
+-- 添加外鍵約束（自參照）
+ALTER TABLE pf_demo_user ADD CONSTRAINT fk_created_by FOREIGN KEY (created_by) REFERENCES pf_demo_user(id);
+ALTER TABLE pf_demo_user ADD CONSTRAINT fk_modified_by FOREIGN KEY (modified_by) REFERENCES pf_demo_user(id);
