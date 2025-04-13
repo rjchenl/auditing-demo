@@ -1,5 +1,6 @@
 package com.example.auditingdemo.controller;
 
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -8,15 +9,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.example.auditingdemo.audit.UserContext;
 import com.example.auditingdemo.model.Customer;
@@ -81,10 +76,30 @@ public class CustomerController {
             UserContext.clear();
         }
     }
+
+    /**
+     * 批量創建顧客
+     */
+    @PostMapping("/batch")
+    public List<Customer> createCustomers(
+            @RequestBody List<Customer> customers,
+            @RequestHeader(value = "Authorization", required = true) String authHeader) {
+        try {
+            String token = extractToken(authHeader);
+            log.info("從Authorization頭中提取到令牌: {}", token);
+            UserContext.setCurrentUser(token);
+            
+            List<Customer> savedCustomers = customerRepository.saveAll(customers);
+            log.info("批量創建顧客成功，數量: {}", savedCustomers.size());
+            
+            return savedCustomers;
+        } finally {
+            UserContext.clear();
+        }
+    }
     
     /**
      * 更新顧客
-     * 使用 Authorization header 作為 token 獲取當前用戶信息
      */
     @PutMapping("/{id}")
     public ResponseEntity<Customer> updateCustomer(
@@ -92,16 +107,13 @@ public class CustomerController {
             @RequestBody Customer customerDetails,
             @RequestHeader(value = "Authorization", required = true) String authHeader) {
         try {
-            // 提取token
             String token = extractToken(authHeader);
             log.info("從Authorization頭中提取到令牌: {}", token);
             
-            // 設置當前用戶 token
             UserContext.setCurrentUser(token);
             
             return customerRepository.findById(id)
                     .map(customer -> {
-                        // 更新顧客基本信息
                         if (customerDetails.getName() != null) {
                             customer.setName(customerDetails.getName());
                         }
@@ -118,7 +130,6 @@ public class CustomerController {
                             customer.setCompany(customerDetails.getCompany());
                         }
                         
-                        // 保存更新後的顧客
                         Customer updatedCustomer = customerRepository.save(customer);
                         log.info("顧客更新成功，ID={}, 審計信息: modifiedBy={}", 
                                 updatedCustomer.getId(), updatedCustomer.getModifiedBy().getUsername());
@@ -127,7 +138,30 @@ public class CustomerController {
                     })
                     .orElse(ResponseEntity.notFound().build());
         } finally {
-            // 清除 ThreadLocal
+            UserContext.clear();
+        }
+    }
+
+    /**
+     * 刪除顧客
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCustomer(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = true) String authHeader) {
+        try {
+            String token = extractToken(authHeader);
+            log.info("從Authorization頭中提取到令牌: {}", token);
+            UserContext.setCurrentUser(token);
+            
+            return customerRepository.findById(id)
+                    .map(customer -> {
+                        customerRepository.delete(customer);
+                        log.info("顧客刪除成功，ID={}", id);
+                        return ResponseEntity.ok().<Void>build();
+                    })
+                    .orElse(ResponseEntity.notFound().build());
+        } finally {
             UserContext.clear();
         }
     }
@@ -150,12 +184,47 @@ public class CustomerController {
                     auditInfo.put("createdBy", customer.getCreatedBy().getUsername());
                     auditInfo.put("createdByName", customer.getCreatedBy().getName());
                     auditInfo.put("createdTime", customer.getCreatedTime().atZone(zoneId).format(formatter));
+                    auditInfo.put("createdCompany", customer.getCreatedCompany());
+                    auditInfo.put("createdUnit", customer.getCreatedUnit());
+                    auditInfo.put("createdName", customer.getCreatedName());
                     
                     // 修改者信息
                     auditInfo.put("modifiedBy", customer.getModifiedBy().getUsername());
                     auditInfo.put("modifiedByName", customer.getModifiedBy().getName());
                     auditInfo.put("modifiedTime", customer.getModifiedTime().atZone(zoneId).format(formatter));
+                    auditInfo.put("modifiedCompany", customer.getModifiedCompany());
+                    auditInfo.put("modifiedUnit", customer.getModifiedUnit());
+                    auditInfo.put("modifiedName", customer.getModifiedName());
                     
+                    return auditInfo;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 查詢特定時間範圍內修改的記錄
+     */
+    @GetMapping("/audit/modified")
+    public List<Map<String, Object>> getModifiedInRange(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime start,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime end) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        ZoneId zoneId = ZoneId.of("Asia/Taipei");
+        
+        return customerRepository.findAll().stream()
+                .filter(customer -> {
+                    LocalDateTime modifiedTime = customer.getModifiedTime();
+                    return !modifiedTime.isBefore(start) && !modifiedTime.isAfter(end);
+                })
+                .map(customer -> {
+                    Map<String, Object> auditInfo = new HashMap<>();
+                    auditInfo.put("customerId", customer.getId());
+                    auditInfo.put("customerName", customer.getName());
+                    auditInfo.put("modifiedBy", customer.getModifiedBy().getUsername());
+                    auditInfo.put("modifiedTime", customer.getModifiedTime().atZone(zoneId).format(formatter));
+                    auditInfo.put("modifiedCompany", customer.getModifiedCompany());
+                    auditInfo.put("modifiedUnit", customer.getModifiedUnit());
+                    auditInfo.put("modifiedName", customer.getModifiedName());
                     return auditInfo;
                 })
                 .collect(Collectors.toList());
